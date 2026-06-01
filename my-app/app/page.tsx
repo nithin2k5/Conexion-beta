@@ -7,86 +7,76 @@ const TAGS = ["Music", "Gaming", "Travel", "Art", "Tech", "Movies", "Sports", "B
 
 export default function Home() {
   const [count, setCount] = useState(24817);
-
   useEffect(() => {
     const t = setInterval(() => setCount(c => c + Math.floor(Math.random() * 7) - 3), 2500);
     return () => clearInterval(t);
   }, []);
 
   return (
-    <div className="page">
-      {/* Background orbs */}
-      <div
-        className="orb"
-        style={{
-          width: 500, height: 500,
-          top: -160, left: -180,
-          background: "radial-gradient(circle, rgba(245,158,11,0.13) 0%, transparent 70%)",
-          animationDelay: "0s",
-        }}
-      />
-      <div
-        className="orb"
-        style={{
-          width: 360, height: 360,
-          bottom: 60, right: -120,
-          background: "radial-gradient(circle, rgba(245,158,11,0.08) 0%, transparent 70%)",
-          animationDelay: "-4s",
-        }}
-      />
+    <div className="lp-root">
+
+      {/* Ambient orbs */}
+      <div className="orb" style={{
+        width: 480, height: 480, top: -140, left: -160,
+        background: "radial-gradient(circle, rgba(245,158,11,0.12) 0%, transparent 70%)",
+        animationDelay: "0s",
+      }} />
+      <div className="orb" style={{
+        width: 340, height: 340, bottom: 40, right: -100,
+        background: "radial-gradient(circle, rgba(245,158,11,0.07) 0%, transparent 70%)",
+        animationDelay: "-4s",
+      }} />
 
       {/* ── Nav ── */}
-      <nav className="nav">
-        <div className="nav-logo">
-          <div className="nav-logo-mark">
-            <span className="nav-logo-ping" />
+      <nav className="lp-nav">
+        <div className="lp-logo">
+          <div className="lp-logo-icon">
+            <span className="lp-logo-ring" />
             <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7z" clipRule="evenodd" />
             </svg>
           </div>
-          <span className="nav-logo-name font-display text-shimmer">Conexion</span>
+          <span className="lp-logo-name f-display g-shimmer">Conexion</span>
         </div>
 
-        <div className="nav-right">
-          <div className="online-badge">
-            <span className="online-dot" />
+        <div className="lp-nav-right">
+          <div className="badge-count">
+            <span className="dot-online" />
             {count.toLocaleString()} online
           </div>
-          <Link href="/chat" className="btn-primary" style={{ padding: "9px 20px", borderRadius: 10, fontSize: "0.85rem" }}>
+          <Link href="/chat" className="btn btn-amber" style={{ padding: "8px 18px", fontSize: "0.84rem", borderRadius: 9 }}>
             Start chatting
           </Link>
         </div>
       </nav>
 
       {/* ── Hero ── */}
-      <main className="hero">
-        <div className="hero-badge animate-fade-up delay-100">
-          <span className="online-dot" style={{ width: 5, height: 5 }} />
+      <main className="lp-hero">
+        <div className="lp-badge anim-fadeup d1">
+          <span className="dot-online" style={{ width: 5, height: 5 }} />
           Anonymous · Real-time · Free
         </div>
 
-        <h1 className="hero-title font-display animate-fade-up delay-200">
+        <h1 className="lp-h1 f-display anim-fadeup d2">
           Talk to a<br />
-          <span className="text-shimmer">random stranger.</span>
+          <span className="g-shimmer">random stranger.</span>
         </h1>
 
-        <p className="hero-sub animate-fade-up delay-300">
+        <p className="lp-sub anim-fadeup d3">
           No sign-up. No profile. Just open a chat and start talking to someone new — anywhere in the world.
         </p>
 
-        <div className="hero-ctas animate-fade-up delay-400">
-          <Link href="/chat" className="btn-primary">
+        <div className="lp-ctas anim-fadeup d4">
+          <Link href="/chat" className="btn btn-amber">
             <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7z" clipRule="evenodd" />
             </svg>
             New conversation
           </Link>
-          <a href="#how" className="btn-ghost">
-            How it works
-          </a>
+          <a href="#how" className="btn btn-outline">How it works</a>
         </div>
 
-        <div className="hero-tags animate-fade-up delay-500">
+        <div className="lp-tags anim-fadeup d5">
           {TAGS.map(tag => (
             <span key={tag} className="pill" style={{ cursor: "default" }}>{tag}</span>
           ))}
@@ -94,28 +84,28 @@ export default function Home() {
       </main>
 
       {/* ── Divider ── */}
-      <div className="divider" />
+      <div className="lp-divider" />
 
       {/* ── How it works ── */}
-      <section id="how" className="section">
-        <div className="section-inner">
-          <h2 className="section-title font-display">
-            Three steps to <span className="text-gradient">connect</span>
+      <section id="how" className="lp-how">
+        <div className="lp-how-inner">
+          <h2 className="lp-how-title f-display">
+            Three steps to <span className="g-text">connect</span>
           </h2>
-          <div className="steps-grid">
+          <div className="lp-cards">
             {[
-              { num: "01", emoji: "🎯", title: "Pick interests", desc: "Choose tags to match with people who share your passions." },
-              { num: "02", emoji: "⚡", title: "Instant match",  desc: "Get paired with a random stranger in seconds." },
-              { num: "03", emoji: "💬", title: "Start talking",  desc: "Chat freely. Skip anytime. Zero commitment." },
-            ].map(step => (
-              <div key={step.num} className="step-card">
-                <div className="step-card-top">
-                  <span className="step-emoji">{step.emoji}</span>
-                  <span className="step-num font-display">{step.num}</span>
+              { num: "01", emoji: "🎯", title: "Pick interests",    desc: "Choose tags to match with people who share your passions." },
+              { num: "02", emoji: "⚡", title: "Instant match",     desc: "Get paired with a random stranger in seconds." },
+              { num: "03", emoji: "💬", title: "Start talking",     desc: "Chat freely. Skip anytime. Zero commitment." },
+            ].map(s => (
+              <div key={s.num} className="lp-card">
+                <div className="lp-card-top">
+                  <span className="lp-card-emoji">{s.emoji}</span>
+                  <span className="lp-card-num f-display">{s.num}</span>
                 </div>
                 <div>
-                  <div className="step-title font-display">{step.title}</div>
-                  <div className="step-desc">{step.desc}</div>
+                  <div className="lp-card-title f-display">{s.title}</div>
+                  <div className="lp-card-desc">{s.desc}</div>
                 </div>
               </div>
             ))}
@@ -124,13 +114,11 @@ export default function Home() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="footer">
-        <span className="font-display text-shimmer" style={{ fontSize: "0.95rem", fontWeight: 800 }}>
-          Conexion
-        </span>
-        <div className="footer-links">
+      <footer className="lp-footer">
+        <span className="f-display g-shimmer" style={{ fontSize: "0.95rem", fontWeight: 800 }}>Conexion</span>
+        <div className="lp-footer-links">
           {["Privacy", "Terms", "Safety"].map(l => (
-            <a key={l} href="#" className="footer-link">{l}</a>
+            <a key={l} href="#" className="lp-footer-link">{l}</a>
           ))}
         </div>
       </footer>
