@@ -16,11 +16,11 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: "Conexion — Meet Strangers Instantly",
-  description: "Connect with random people around the world via text chat. Secure, anonymous, and real-time.",
-  keywords: ["random chat", "text chat", "strangers", "conexion"],
+  description: "Connect with random people around the world via high-quality video, audio, and text chat. Secure, anonymous, and real-time.",
+  keywords: ["random chat", "video chat", "audio chat", "text chat", "strangers", "conexion"],
   openGraph: {
     title: "Conexion — Meet Strangers Instantly",
-    description: "Connect with random people around the world via text chat.",
+    description: "Connect with random people around the world via video, audio, and text chat.",
     type: "website",
   },
 };

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
-const TAGS = ["Music", "Gaming", "Travel", "Art", "Tech", "Movies", "Sports", "Books", "Anime", "Food"];
+const TAGS = ["Music", "Gaming", "Travel", "Art", "Tech", "Movies", "Sports", "Books", "Anime", "Food", "Science", "Fitness"];
 
 export default function Home() {
   const [count, setCount] = useState(24817);
@@ -13,115 +13,118 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="lp-root">
+    <>
+      <div className="bg-orb bg-orb-1" />
+      <div className="bg-orb bg-orb-2" />
+      <div className="bg-orb bg-orb-3" />
 
-      {/* Ambient orbs */}
-      <div className="orb" style={{
-        width: 480, height: 480, top: -140, left: -160,
-        background: "radial-gradient(circle, rgba(245,158,11,0.12) 0%, transparent 70%)",
-        animationDelay: "0s",
-      }} />
-      <div className="orb" style={{
-        width: 340, height: 340, bottom: 40, right: -100,
-        background: "radial-gradient(circle, rgba(245,158,11,0.07) 0%, transparent 70%)",
-        animationDelay: "-4s",
-      }} />
-
-      {/* ── Nav ── */}
-      <nav className="lp-nav">
-        <div className="lp-logo">
-          <div className="lp-logo-icon">
-            <span className="lp-logo-ring" />
-            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <span className="lp-logo-name f-display g-shimmer">Conexion</span>
-        </div>
-
-        <div className="lp-nav-right">
-          <div className="badge-count">
-            <span className="dot-online" />
-            {count.toLocaleString()} online
-          </div>
-          <Link href="/chat" className="btn btn-amber" style={{ padding: "8px 18px", fontSize: "0.84rem", borderRadius: 9 }}>
-            Start chatting
+      <div className="nav-wrapper anim-fade-in">
+        <nav className="navbar glass-panel">
+          <Link href="/" className="logo">
+            <div className="logo-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+                <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v15.5l-2-2h-2" />
+              </svg>
+            </div>
+            <span className="f-display text-gradient">Conexion</span>
           </Link>
-        </div>
-      </nav>
 
-      {/* ── Hero ── */}
-      <main className="lp-hero">
-        <div className="lp-badge anim-fadeup d1">
-          <span className="dot-online" style={{ width: 5, height: 5 }} />
-          Anonymous · Real-time · Free
+          <div className="nav-actions">
+            <div className="status-indicator hidden sm:flex" style={{ display: 'flex' }}>
+              <span className="status-dot" />
+              {count.toLocaleString()} online
+            </div>
+            <Link href="/chat" className="btn btn-primary">
+              Start Chatting
+            </Link>
+          </div>
+        </nav>
+      </div>
+
+      <main className="hero-section">
+        <div className="hero-badge anim-fade-up">
+          <span className="status-dot" style={{ background: '#818cf8', boxShadow: '0 0 10px #818cf8' }} />
+          Anonymous &middot; Fast &middot; Free
         </div>
 
-        <h1 className="lp-h1 f-display anim-fadeup d2">
-          Talk to a<br />
-          <span className="g-shimmer">random stranger.</span>
+        <h1 className="hero-title f-display anim-fade-up delay-1">
+          Connect with the world <br />
+          <span className="text-gradient-shimmer">instantly.</span>
         </h1>
 
-        <p className="lp-sub anim-fadeup d3">
-          No sign-up. No profile. Just open a chat and start talking to someone new — anywhere in the world.
+        <p className="hero-desc anim-fade-up delay-2">
+          No sign-ups. No profiles. Just jump right into a conversation with a stranger from anywhere across the globe. Rediscover the magic of human connection.
         </p>
 
-        <div className="lp-ctas anim-fadeup d4">
-          <Link href="/chat" className="btn btn-amber">
-            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7z" clipRule="evenodd" />
+        <div className="hero-ctas anim-fade-up delay-3">
+          <Link href="/chat" className="btn btn-primary" style={{ padding: '16px 32px', fontSize: '1.1rem' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
             </svg>
-            New conversation
+            Start New Chat
           </Link>
-          <a href="#how" className="btn btn-outline">How it works</a>
+          <a href="#features" className="btn btn-outline" style={{ padding: '16px 32px', fontSize: '1.1rem' }}>
+            Explore Features
+          </a>
         </div>
 
-        <div className="lp-tags anim-fadeup d5">
+        <div className="tags-container anim-fade-up delay-4" style={{ marginTop: '48px' }}>
           {TAGS.map(tag => (
-            <span key={tag} className="pill" style={{ cursor: "default" }}>{tag}</span>
+            <span key={tag} className="tag-pill">{tag}</span>
           ))}
         </div>
       </main>
 
-      {/* ── Divider ── */}
-      <div className="lp-divider" />
-
-      {/* ── How it works ── */}
-      <section id="how" className="lp-how">
-        <div className="lp-how-inner">
-          <h2 className="lp-how-title f-display">
-            Three steps to <span className="g-text">connect</span>
-          </h2>
-          <div className="lp-cards">
-            {[
-              { num: "01", emoji: "🎯", title: "Pick interests",    desc: "Choose tags to match with people who share your passions." },
-              { num: "02", emoji: "⚡", title: "Instant match",     desc: "Get paired with a random stranger in seconds." },
-              { num: "03", emoji: "💬", title: "Start talking",     desc: "Chat freely. Skip anytime. Zero commitment." },
-            ].map(s => (
-              <div key={s.num} className="lp-card">
-                <div className="lp-card-top">
-                  <span className="lp-card-emoji">{s.emoji}</span>
-                  <span className="lp-card-num f-display">{s.num}</span>
-                </div>
-                <div>
-                  <div className="lp-card-title f-display">{s.title}</div>
-                  <div className="lp-card-desc">{s.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+      <section id="features" className="features-section">
+        <div className="features-grid">
+          {[
+            {
+              icon: (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="28" height="28">
+                  <circle cx="12" cy="12" r="10" />
+                  <circle cx="12" cy="12" r="6" />
+                  <circle cx="12" cy="12" r="2" />
+                </svg>
+              ),
+              title: "Smart Matching",
+              desc: "Select your interests and our algorithm pairs you with like-minded strangers instantly for better conversations."
+            },
+            {
+              icon: (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="28" height="28">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+              ),
+              title: "Lightning Fast",
+              desc: "Built on a high-performance edge network. Messages are delivered in real-time with zero noticeable latency."
+            },
+            {
+              icon: (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="28" height="28">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              ),
+              title: "Total Anonymity",
+              desc: "Your privacy is guaranteed. We don't track your data, require accounts, or save chat logs. Chat freely."
+            }
+          ].map((f, i) => (
+            <div key={i} className="feature-card glass-panel anim-fade-up" style={{ animationDelay: `${0.2 * i}s` }}>
+              <div className="feature-icon-wrap">{f.icon}</div>
+              <h3 className="feature-title f-display">{f.title}</h3>
+              <p className="feature-desc">{f.desc}</p>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="lp-footer">
-        <span className="f-display g-shimmer" style={{ fontSize: "0.95rem", fontWeight: 800 }}>Conexion</span>
-        <div className="lp-footer-links">
-          {["Privacy", "Terms", "Safety"].map(l => (
-            <a key={l} href="#" className="lp-footer-link">{l}</a>
-          ))}
+      <footer style={{ borderTop: '1px solid var(--border-color)', padding: '40px 20px', textAlign: 'center', marginTop: '60px', color: 'var(--text-muted)' }}>
+        <p className="f-display text-gradient" style={{ fontWeight: 'bold', fontSize: '1.2rem', marginBottom: '16px' }}>Conexion</p>
+        <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', fontSize: '0.9rem' }}>
+          <a href="#" style={{ transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color='white'} onMouseOut={e => e.currentTarget.style.color='var(--text-muted)'}>Privacy Policy</a>
+          <a href="#" style={{ transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color='white'} onMouseOut={e => e.currentTarget.style.color='var(--text-muted)'}>Terms of Service</a>
         </div>
       </footer>
-    </div>
+    </>
   );
 }
