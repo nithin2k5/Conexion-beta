@@ -74,7 +74,7 @@ function ChatApp() {
           }
         })
         .catch(err => {
-          console.error("Camera error:", err);
+          console.warn("Camera permissions denied or not available:", err);
           setCamOn(false);
           setMicOn(false);
         });
