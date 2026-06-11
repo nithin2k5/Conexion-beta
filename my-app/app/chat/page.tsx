@@ -100,7 +100,10 @@ function ChatApp() {
   }, [camOn, micOn, localStream]);
 
   const connectWS = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return;
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+      return wsRef.current;
+    }
+
     setWsError(false);
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
@@ -171,14 +174,19 @@ function ChatApp() {
   const sys = (text: string): Msg => ({ id: crypto.randomUUID(), from: "system", text });
 
   const startSearch = () => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      const ws = connectWS();
-      ws?.addEventListener("open", () => {
-        wsRef.current?.send(JSON.stringify({ type: "queue", interests: tags }));
-      }, { once: true });
-    } else {
-      wsSend({ type: "queue", interests: tags });
+    let ws = wsRef.current;
+    if (!ws || ws.readyState > WebSocket.OPEN) {
+      ws = connectWS();
     }
+    
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "queue", interests: tags }));
+    } else {
+      ws.addEventListener("open", () => {
+        ws.send(JSON.stringify({ type: "queue", interests: tags }));
+      }, { once: true });
+    }
+    
     setStatus("connecting");
     setElapsed(0);
     setMsgs([]);
@@ -356,7 +364,7 @@ function ChatApp() {
 
         {/* VIDEO CHAT */}
         {mode === "video" && (
-          <div className="flex-1 flex flex-col w-full h-full relative">
+          <div className="flex-1 flex flex-col w-full min-h-[600px] h-full relative">
             {/* Massive Main Remote Feed */}
             <motion.div className="absolute inset-0 bg-black/40 backdrop-blur-2xl rounded-[40px] overflow-hidden flex flex-col items-center justify-center shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] border border-white/5">
               <AnimatePresence mode="wait">
@@ -386,7 +394,7 @@ function ChatApp() {
             </motion.div>
 
             {/* PiP Local Feed (Bottom Right) */}
-            <motion.div className="absolute bottom-32 right-4 sm:right-8 w-40 h-56 sm:w-64 sm:h-80 bg-[#0a0a0f] rounded-3xl overflow-hidden shadow-2xl flex flex-col items-center justify-center z-20 border border-white/10 transition-all">
+            <motion.div className="absolute bottom-28 right-4 sm:right-8 w-32 h-44 sm:w-64 sm:h-80 bg-[#0a0a0f] rounded-3xl overflow-hidden shadow-2xl flex flex-col items-center justify-center z-20 border border-white/10 transition-all">
               <video 
                 ref={localVideoRef} 
                 autoPlay 
@@ -407,7 +415,7 @@ function ChatApp() {
               {status === "chatting" && (
                 <motion.div 
                   initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                  className="absolute bottom-32 left-4 sm:left-8 w-64 sm:w-80 bg-black/60 backdrop-blur-2xl border border-white/5 rounded-3xl flex flex-col max-h-[400px] shadow-2xl z-20 overflow-hidden"
+                  className="absolute bottom-28 left-4 sm:left-8 w-60 sm:w-80 bg-black/60 backdrop-blur-2xl border border-white/5 rounded-3xl flex flex-col max-h-[300px] sm:max-h-[400px] shadow-2xl z-20 overflow-hidden"
                 >
                   <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3">
                     {msgs.map(m => (
@@ -436,7 +444,7 @@ function ChatApp() {
             </AnimatePresence>
 
             {/* Central Floating Controls Dock */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 glass-panel !rounded-full px-6 py-3 sm:px-8 sm:py-4 flex items-center justify-center gap-4 sm:gap-6 z-30 shadow-[0_10px_50px_rgba(0,0,0,0.8)] border border-white/5 w-max max-w-full overflow-x-auto">
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 glass-panel !rounded-full px-4 py-3 sm:px-8 sm:py-4 flex items-center justify-center gap-2 sm:gap-6 z-30 shadow-[0_10px_50px_rgba(0,0,0,0.8)] border border-white/5 w-max max-w-full overflow-x-auto">
               <button className={`w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-full flex items-center justify-center text-xl sm:text-2xl transition-all ${micOn ? "bg-white/10 hover:bg-white/20 text-white" : "bg-red-500/20 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]"}`} onClick={() => setMicOn(!micOn)}>
                 {micOn ? <RiMicLine /> : <RiMicOffLine />}
               </button>
@@ -447,25 +455,25 @@ function ChatApp() {
               <div className="w-px h-8 bg-white/20 mx-1 sm:mx-2 shrink-0" />
 
               {status === "idle" && (
-                <button className="btn-primary py-3 px-6 sm:py-4 sm:px-8 rounded-full text-base sm:text-lg whitespace-nowrap" onClick={startSearch}>Start Video Chat</button>
+                <button className="btn-primary py-3 px-5 sm:py-4 sm:px-8 rounded-full text-sm sm:text-lg whitespace-nowrap" onClick={startSearch}>Start Video Chat</button>
               )}
               {isSearching && (
-                <button className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 sm:py-4 sm:px-8 rounded-full flex items-center gap-2 transition-colors shadow-[0_0_20px_rgba(239,68,68,0.4)] whitespace-nowrap" onClick={stopSearch}>
+                <button className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-5 sm:py-4 sm:px-8 rounded-full flex items-center gap-2 transition-colors shadow-[0_0_20px_rgba(239,68,68,0.4)] whitespace-nowrap" onClick={stopSearch}>
                   <RiCloseCircleLine className="text-xl shrink-0" /> Cancel Search
                 </button>
               )}
               {status === "chatting" && (
                 <>
-                  <button className="bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 font-bold py-3 px-6 sm:py-4 sm:px-8 rounded-full flex items-center gap-2 transition-colors whitespace-nowrap" onClick={skip}>
+                  <button className="bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 font-bold py-3 px-5 sm:py-4 sm:px-8 rounded-full flex items-center gap-2 transition-colors whitespace-nowrap" onClick={skip}>
                     <RiSkipForwardLine className="text-xl shrink-0" /> Skip
                   </button>
-                  <button className="bg-red-500/20 text-red-500 hover:bg-red-500/30 font-bold py-3 px-6 sm:py-4 sm:px-8 rounded-full flex items-center gap-2 transition-colors whitespace-nowrap" onClick={endCall}>
+                  <button className="bg-red-500/20 text-red-500 hover:bg-red-500/30 font-bold py-3 px-5 sm:py-4 sm:px-8 rounded-full flex items-center gap-2 transition-colors whitespace-nowrap" onClick={endCall}>
                     <RiCloseCircleLine className="text-xl shrink-0" /> End Call
                   </button>
                 </>
               )}
               {status === "ended" && (
-                <button className="btn-primary py-3 px-6 sm:py-4 sm:px-8 rounded-full text-base sm:text-lg whitespace-nowrap" onClick={startSearch}>New Call</button>
+                <button className="btn-primary py-3 px-5 sm:py-4 sm:px-8 rounded-full text-sm sm:text-lg whitespace-nowrap" onClick={startSearch}>New Call</button>
               )}
             </div>
           </div>
