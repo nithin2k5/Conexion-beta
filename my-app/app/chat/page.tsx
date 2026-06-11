@@ -261,7 +261,7 @@ function ChatApp() {
         
         {/* TEXT CHAT */}
         {mode === "text" && (
-          <div className="flex-1 flex flex-col max-w-3xl w-full mx-auto glass-panel relative overflow-hidden">
+          <div className="flex-1 flex flex-col max-w-3xl w-full min-h-[500px] h-full mx-auto glass-panel relative overflow-hidden">
             
             <AnimatePresence mode="wait">
               {(status === "idle" || status === "ended") && (
