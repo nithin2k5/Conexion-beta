@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import ParticleBackground from "../components/ParticleBackground";
-import { RiMessage3Line, RiVideoChatLine, RiMicLine, RiMicOffLine, RiCameraLine, RiCameraOffLine, RiSendPlaneFill, RiSkipForwardLine, RiCloseCircleLine, RiSearchEyeLine, RiAlertFill } from "react-icons/ri";
+import { RiMessage3Line, RiVideoChatLine, RiMicLine, RiMicOffLine, RiCameraLine, RiCameraOffLine, RiSendPlaneFill, RiSkipForwardLine, RiCloseCircleLine, RiSearchEyeLine, RiAlertFill, RiShieldCheckLine } from "react-icons/ri";
+import { useNsfwDetection, useNsfwVideoAnalysis } from "../hooks/useNsfwDetection";
 
 type Status = "idle" | "connecting" | "queued" | "chatting" | "ended";
 type ChatMode = "text" | "video";
@@ -40,11 +41,6 @@ function ChatApp() {
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const [wsError, setWsError] = useState(false);
 
-  // NSFW Detection State
-  const [nsfwModel, setNsfwModel] = useState<any>(null);
-  const [isRemoteNsfw, setIsRemoteNsfw] = useState(false);
-  const [isLocalNsfw, setIsLocalNsfw] = useState(false);
-
   const endRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -55,25 +51,18 @@ function ChatApp() {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
 
-  // Load NSFW model
-  useEffect(() => {
-    let isMounted = true;
-    const loadModel = async () => {
-      try {
-        await import("@tensorflow/tfjs");
-        const nsfwjs = await import("nsfwjs");
-        const model = await nsfwjs.load();
-        if (isMounted) {
-          setNsfwModel(model);
-          console.log("NSFW model loaded");
-        }
-      } catch (err) {
-        console.error("Failed to load NSFW model", err);
-      }
-    };
-    loadModel();
-    return () => { isMounted = false; };
-  }, []);
+  // NSFW Detection — loads model once (singleton), runs periodic analysis on video feeds
+  const { modelLoaded: nsfwReady, modelLoading: nsfwLoading, classifyElement } = useNsfwDetection({
+    enabled: mode === "video",
+  });
+
+  const isRemoteNsfw = useNsfwVideoAnalysis(remoteVideoRef, classifyElement, {
+    enabled: mode === "video" && status === "chatting" && nsfwReady,
+  });
+
+  const isLocalNsfw = useNsfwVideoAnalysis(localVideoRef, classifyElement, {
+    enabled: mode === "video" && camOn && nsfwReady,
+  });
 
   // Auto-scroll
   useEffect(() => {
@@ -91,10 +80,13 @@ function ChatApp() {
   }, [status]);
 
   // Webcam access
+  // Using a ref to track localStream inside the effect to avoid dependency issues
+  const localStreamRef = useRef<MediaStream | null>(null);
   useEffect(() => {
     if (mode === "video") {
       navigator.mediaDevices.getUserMedia({ video: true, audio: true })
         .then((stream) => {
+          localStreamRef.current = stream;
           setLocalStream(stream);
           if (localVideoRef.current) {
             localVideoRef.current.srcObject = stream;
@@ -106,14 +98,16 @@ function ChatApp() {
           setMicOn(false);
         });
     } else {
-      if (localStream) {
-        localStream.getTracks().forEach(t => t.stop());
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(t => t.stop());
+        localStreamRef.current = null;
         setLocalStream(null);
       }
     }
     return () => {
-      if (localStream) {
-        localStream.getTracks().forEach(t => t.stop());
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(t => t.stop());
+        localStreamRef.current = null;
       }
     };
   }, [mode]);
@@ -126,42 +120,7 @@ function ChatApp() {
     }
   }, [camOn, micOn, localStream]);
 
-  // NSFW Analysis Loop
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (mode === "video" && nsfwModel) {
-      interval = setInterval(async () => {
-        // Check remote video
-        if (status === "chatting" && remoteVideoRef.current && remoteVideoRef.current.readyState === 4) {
-          try {
-            const predictions = await nsfwModel.classify(remoteVideoRef.current);
-            const nsfwClasses = ["Porn", "Hentai", "Sexy"];
-            const isNsfw = predictions.some((p: any) => nsfwClasses.includes(p.className) && p.probability > 0.6);
-            setIsRemoteNsfw(isNsfw);
-          } catch (err) {
-            console.error("Error analyzing remote video", err);
-          }
-        } else {
-          setIsRemoteNsfw(false);
-        }
-
-        // Check local video
-        if (camOn && localVideoRef.current && localVideoRef.current.readyState === 4) {
-          try {
-            const predictions = await nsfwModel.classify(localVideoRef.current);
-            const nsfwClasses = ["Porn", "Hentai", "Sexy"];
-            const isNsfw = predictions.some((p: any) => nsfwClasses.includes(p.className) && p.probability > 0.6);
-            setIsLocalNsfw(isNsfw);
-          } catch (err) {
-            console.error("Error analyzing local video", err);
-          }
-        } else {
-          setIsLocalNsfw(false);
-        }
-      }, 1000); // Check every second
-    }
-    return () => clearInterval(interval);
-  }, [mode, status, camOn, nsfwModel]);
+  // (NSFW analysis is now handled by the useNsfwVideoAnalysis hooks above)
 
   const wsSend = (payload: object) => {
     const ws = wsRef.current;
@@ -360,6 +319,18 @@ function ChatApp() {
         </div>
 
         <div className="flex items-center gap-5">
+          {mode === "video" && (
+            <div className={`flex items-center gap-2 text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-all ${
+              nsfwReady
+                ? "text-emerald-400 bg-emerald-500/10 shadow-[0_0_15px_rgba(52,211,153,0.15)]"
+                : nsfwLoading
+                  ? "text-amber-400 bg-amber-500/10 animate-pulse"
+                  : "text-white/30 bg-white/5"
+            }`}>
+              <RiShieldCheckLine className="text-base" />
+              {nsfwReady ? "Protected" : nsfwLoading ? "Loading..." : "Shield"}
+            </div>
+          )}
           {status === "chatting" && (
             <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="text-[12px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 px-4 py-2 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.2)]">
               {fmt(elapsed)}
