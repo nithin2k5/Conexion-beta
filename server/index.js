@@ -39,6 +39,8 @@ const { randomUUID } = require("crypto");
 
 const PORT   = process.env.PORT    || 3001;
 const ORIGIN = process.env.ORIGIN  || "http://localhost:3000";
+const MAX_PAYLOAD = 65536; // 64KB max websocket payload
+const RATE_LIMIT_MSGS = 20; // max messages per second
 
 // ── Express app ───────────────────────────────────────────────────────────────
 
@@ -76,7 +78,7 @@ const server = http.createServer(app);
 
 // ── WebSocket server ──────────────────────────────────────────────────────────
 
-const wss = new WebSocketServer({ noServer: true });
+const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD });
 
 /**
  * Upgrade HTTP → WS only on the /ws path.
@@ -84,6 +86,14 @@ const wss = new WebSocketServer({ noServer: true });
  */
 server.on("upgrade", (req, socket, head) => {
   if (req.url === "/ws") {
+    const reqOrigin = req.headers.origin;
+    // Check if origin matches allowed ORIGIN
+    if (ORIGIN !== "*" && reqOrigin && !reqOrigin.startsWith(ORIGIN)) {
+      socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
     wss.handleUpgrade(req, socket, head, (ws) => {
       wss.emit("connection", ws, req);
     });
@@ -94,7 +104,7 @@ server.on("upgrade", (req, socket, head) => {
 
 // ── In-memory state ───────────────────────────────────────────────────────────
 
-/** @type {Map<string, { ws: WebSocket, interests: string[], partnerId: string|null, sessionId: string|null }>} */
+/** @type {Map<string, { ws: WebSocket, interests: string[], partnerId: string|null, sessionId: string|null, msgCount: number, windowStart: number }>} */
 const clients = new Map();
 
 /** Ordered list of client IDs waiting to be matched */
@@ -221,17 +231,28 @@ function detachPartner(clientId) {
 
 wss.on("connection", (ws) => {
   const id = randomUUID();
-  clients.set(id, { ws, interests: [], partnerId: null, sessionId: null });
+  clients.set(id, { ws, interests: [], partnerId: null, sessionId: null, msgCount: 0, windowStart: Date.now() });
 
   broadcast({ type: "online_count", count: clients.size });
   console.log(`[+] ${id.slice(0, 6)} connected  | total: ${clients.size}`);
 
   ws.on("message", (raw) => {
-    let msg;
-    try { msg = JSON.parse(raw.toString()); } catch { return; }
-
     const client = clients.get(id);
     if (!client) return;
+
+    // Rate Limiting
+    const now = Date.now();
+    if (now - client.windowStart > 1000) {
+      client.msgCount = 0;
+      client.windowStart = now;
+    }
+    client.msgCount++;
+    if (client.msgCount > RATE_LIMIT_MSGS) {
+      return; // Drop message due to rate limit
+    }
+
+    let msg;
+    try { msg = JSON.parse(raw.toString()); } catch { return; }
 
     switch (msg.type) {
 
@@ -242,26 +263,32 @@ wss.on("connection", (ws) => {
       case "queue":
         detachPartner(id);
         removeFromQueue(id);
-        client.interests = Array.isArray(msg.interests) ? msg.interests : [];
+        client.interests = Array.isArray(msg.interests) 
+          ? msg.interests.filter(i => typeof i === "string").map(i => i.substring(0, 50)) 
+          : [];
         tryMatch(id);
         break;
 
       case "cancel":
+        detachPartner(id);
         removeFromQueue(id);
         client.partnerId = null;
         client.sessionId = null;
         break;
 
       case "message":
-        if (!client.partnerId || typeof msg.text !== "string" || !msg.text.trim()) break;
+        if (!client.partnerId || typeof msg.text !== "string") break;
+        const safeText = msg.text.trim();
+        if (!safeText || safeText.length > 2000) break;
         {
           const partner = clients.get(client.partnerId);
-          if (partner) send(partner.ws, { type: "message", text: msg.text.trim(), ts: Date.now() });
+          if (partner) send(partner.ws, { type: "message", text: safeText, ts: Date.now() });
         }
         break;
 
       case "rtc_signal":
         if (!client.partnerId || !msg.payload) break;
+        if (JSON.stringify(msg.payload).length > 10000) break; // sanity check payload size
         {
           const partner = clients.get(client.partnerId);
           if (partner) send(partner.ws, { type: "rtc_signal", payload: msg.payload });
