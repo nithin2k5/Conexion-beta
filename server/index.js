@@ -29,6 +29,7 @@
 
 "use strict";
 
+
 const http    = require("http");
 const express = require("express");
 const cors    = require("cors");
@@ -41,6 +42,7 @@ const PORT   = process.env.PORT    || 3001;
 const ORIGIN = process.env.ORIGIN  || "http://localhost:3000";
 const MAX_PAYLOAD = 65536; // 64KB max websocket payload
 const RATE_LIMIT_MSGS = 20; // max messages per second
+
 
 // ── Express app ───────────────────────────────────────────────────────────────
 
@@ -70,6 +72,26 @@ app.get("/api/stats", (_req, res) => {
     activeSessions,
     timestamp:      new Date().toISOString(),
   });
+});
+
+/** ICE / TURN credentials — consumed by the client before WebRTC setup */
+app.get("/api/turn-credentials", (_req, res) => {
+  const iceServers = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:global.stun.twilio.com:3478" },
+  ];
+
+  // If TURN credentials are configured, add them
+  if (process.env.TURN_URL && process.env.TURN_USERNAME && process.env.TURN_CREDENTIAL) {
+    const turnUrls = process.env.TURN_URL.split(",").map(u => u.trim());
+    iceServers.push({
+      urls: turnUrls,
+      username: process.env.TURN_USERNAME,
+      credential: process.env.TURN_CREDENTIAL,
+    });
+  }
+
+  res.json({ iceServers });
 });
 
 // ── HTTP server ───────────────────────────────────────────────────────────────

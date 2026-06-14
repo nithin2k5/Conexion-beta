@@ -21,6 +21,7 @@ type ChatMode = "text" | "video";
 interface Msg { id: string; from: "me" | "them" | "system"; text: string; ts?: number; }
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001/ws";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api/stats', '') || "http://localhost:3001";
 
 const INTERESTS = [
   "Music","Gaming","Travel","Art","Tech","Movies",
@@ -51,6 +52,11 @@ function ChatApp() {
   const [showReport, setShowReport] = useState(false);
   const [showVideoChat, setShowVideoChat] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [iceServers, setIceServers] = useState<RTCIceServer[]>([
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:global.stun.twilio.com:3478" },
+  ]);
+  const [camError, setCamError] = useState<string | null>(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxReconnectAttempts = 10;
@@ -112,8 +118,16 @@ function ChatApp() {
           console.warn("Camera permissions denied or not available:", err);
           setCamOn(false);
           setMicOn(false);
+          setCamError(
+            err.name === "NotAllowedError"
+              ? "Camera access was denied. Please allow camera permissions in your browser settings."
+              : err.name === "NotFoundError"
+                ? "No camera or microphone found on this device."
+                : "Could not access camera. Please check your device settings."
+          );
         });
     } else {
+      setCamError(null);
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(t => t.stop());
         localStreamRef.current = null;
@@ -136,6 +150,16 @@ function ChatApp() {
     }
   }, [camOn, micOn, localStream]);
 
+  // Fetch TURN credentials from server
+  useEffect(() => {
+    fetch(`${API_BASE}/api/turn-credentials`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.iceServers?.length) setIceServers(data.iceServers);
+      })
+      .catch(() => {});
+  }, []);
+
   // (NSFW analysis is now handled by the useNsfwVideoAnalysis hooks above)
 
   const wsSend = (payload: object) => {
@@ -145,15 +169,7 @@ function ChatApp() {
 
   const setupWebRTC = useCallback((role: "caller" | "callee") => {
     if (pcRef.current) pcRef.current.close();
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:global.stun.twilio.com:3478" },
-        { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
-        { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
-        { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
-      ],
-    });
+    const pc = new RTCPeerConnection({ iceServers });
     pcRef.current = pc;
 
     if (localStream) {
@@ -178,7 +194,7 @@ function ChatApp() {
         .then(() => wsSend({ type: "rtc_signal", payload: { offer: pc.localDescription } }))
         .catch(console.error);
     }
-  }, [localStream]);
+  }, [localStream, iceServers]);
 
   const scheduleReconnect = useCallback(() => {
     if (intentionalCloseRef.current) return;
@@ -350,7 +366,11 @@ function ChatApp() {
     setDraft("");
   };
 
-  const switchMode = (m: ChatMode) => { setMode(m); if (status !== "idle") { setStatus("idle"); setMsgs([]); setElapsed(0); } };
+  const switchMode = (m: ChatMode) => {
+    if (status === "chatting" || isSearching) return;
+    setMode(m);
+    if (status !== "idle") { setStatus("idle"); setMsgs([]); setElapsed(0); }
+  };
   const isSearching = status === "connecting" || status === "queued";
 
   return (
@@ -389,13 +409,15 @@ function ChatApp() {
           <div className="flex bg-white/[0.02] p-1.5 rounded-2xl shadow-xl backdrop-blur-md">
             <button
               onClick={() => switchMode("text")}
-              className={`px-5 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${mode === "text" ? "bg-white text-black shadow-[0_5px_15px_rgba(255,255,255,0.2)]" : "text-white/40 hover:text-white"}`}
+              disabled={status === "chatting" || isSearching}
+              className={`px-5 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${mode === "text" ? "bg-white text-black shadow-[0_5px_15px_rgba(255,255,255,0.2)]" : "text-white/40 hover:text-white"} ${(status === "chatting" || isSearching) ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <RiMessage3Line className="text-lg" /> Text
             </button>
             <button
               onClick={() => switchMode("video")}
-              className={`px-5 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${mode === "video" ? "bg-white text-black shadow-[0_5px_15px_rgba(255,255,255,0.2)]" : "text-white/40 hover:text-white"}`}
+              disabled={status === "chatting" || isSearching}
+              className={`px-5 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${mode === "video" ? "bg-white text-black shadow-[0_5px_15px_rgba(255,255,255,0.2)]" : "text-white/40 hover:text-white"} ${(status === "chatting" || isSearching) ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <RiVideoChatLine className="text-lg" /> Video
             </button>
@@ -589,6 +611,9 @@ function ChatApp() {
                     </div>
                     <h2 className="text-4xl sm:text-5xl font-black mb-4 tracking-tighter text-white/90">Searching the grid...</h2>
                     <p className="text-white/50 text-xl font-medium tracking-wide">Connecting you to the perfect match.</p>
+                    {camError && (
+                      <p className="text-red-400 text-sm mt-4 max-w-md bg-red-500/10 border border-red-500/20 rounded-2xl px-5 py-3">{camError}</p>
+                    )}
                   </motion.div>
                 ) : status === "chatting" ? (
                   <motion.div key="chatting-video" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center w-full h-full relative overflow-hidden">
@@ -620,6 +645,16 @@ function ChatApp() {
                     </div>
                     <h2 className="text-4xl font-black tracking-tighter text-white/80 mb-2">{status === "ended" ? "Session Terminated" : "System Ready"}</h2>
                     <p className="text-white/40 text-lg uppercase tracking-widest font-bold">Awaiting connection</p>
+                    {camError && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-6 flex items-center gap-3 bg-red-500/10 border border-red-500/20 rounded-2xl px-6 py-4 max-w-md"
+                      >
+                        <RiAlertFill className="text-2xl text-red-500 shrink-0" />
+                        <p className="text-sm text-red-400 text-left">{camError}</p>
+                      </motion.div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
