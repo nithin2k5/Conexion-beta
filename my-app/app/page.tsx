@@ -1,44 +1,72 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { motion, useMotionValue, useSpring, useTransform, Variants } from "framer-motion";
-import { RiMessage3Line, RiVideoChatLine, RiLockPasswordLine, RiUserSmileLine, RiFlashlightLine } from "react-icons/ri";
+import { useEffect, useState, useRef } from "react";
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
+import { RiMessage3Line, RiVideoChatLine, RiLockPasswordLine, RiUserSmileLine, RiFlashlightLine, RiArrowRightLine } from "react-icons/ri";
 import ParticleBackground from "./components/ParticleBackground";
 import Footer from "./components/Footer";
 
-/* ── Tilt card (preserved interaction, reskinned) ── */
-const TiltCard = ({ children, className }: { children: React.ReactNode; className?: string }) => {
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const mouseXSpring = useSpring(x, { stiffness: 300, damping: 20 });
-  const mouseYSpring = useSpring(y, { stiffness: 300, damping: 20 });
-  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["6deg", "-6deg"]);
-  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-6deg", "6deg"]);
+// Smooth magnetic button component
+const MagneticButton = ({ children, className, onClick }: any) => {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    x.set(e.clientX / rect.width - rect.left / rect.width - 0.5);
-    y.set(e.clientY / rect.height - rect.top / rect.height - 0.5);
+  const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const { clientX, clientY } = e;
+    const { height, width, left, top } = buttonRef.current!.getBoundingClientRect();
+    const x = clientX - (left + width / 2);
+    const y = clientY - (top + height / 2);
+    setPosition({ x: x * 0.2, y: y * 0.2 });
   };
-  const handleMouseLeave = () => { x.set(0); y.set(0); };
+
+  const handleMouseLeave = () => {
+    setPosition({ x: 0, y: 0 });
+  };
 
   return (
-    <motion.div
+    <motion.button
+      ref={buttonRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      style={{ rotateY, rotateX, transformStyle: "preserve-3d" }}
-      className={`warm-panel p-6 cursor-pointer ${className || ""}`}
+      animate={{ x: position.x, y: position.y }}
+      transition={{ type: "spring", stiffness: 150, damping: 15, mass: 0.1 }}
+      className={className}
+      onClick={onClick}
     >
-      <div style={{ transform: "translateZ(20px)" }}>
-        {children}
-      </div>
-    </motion.div>
+      {children}
+    </motion.button>
+  );
+};
+
+// Fade up text reveal
+const FadeUpText = ({ text, delay = 0 }: { text: string; delay?: number }) => {
+  const words = text.split(" ");
+  return (
+    <div className="flex flex-wrap overflow-hidden">
+      {words.map((word, i) => (
+        <motion.span
+          key={i}
+          initial={{ y: "100%", opacity: 0 }}
+          whileInView={{ y: 0, opacity: 1 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.8, delay: delay + i * 0.05, ease: [0.33, 1, 0.68, 1] }}
+          className="mr-2"
+        >
+          {word}
+        </motion.span>
+      ))}
+    </div>
   );
 };
 
 export default function Home() {
   const [onlineCount, setOnlineCount] = useState<number | null>(null);
+  const containerRef = useRef(null);
+  const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end end"] });
+  
+  const heroY = useTransform(scrollYProgress, [0, 0.2], [0, 150]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.15], [1, 0]);
 
   useEffect(() => {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/stats";
@@ -48,224 +76,244 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
-  const containerVariants: Variants = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.12 } },
-  };
-  const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 24 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 280, damping: 26 } },
-  };
-
   return (
-    <div className="relative min-h-screen w-full flex flex-col items-center overflow-hidden"
-      style={{ backgroundColor: "var(--color-ivory)" }}>
-      <ParticleBackground />
+    <div className="relative min-h-screen w-full flex flex-col items-center selection:bg-[var(--color-charcoal)] selection:text-[var(--color-ivory)]"
+      style={{ backgroundColor: "var(--color-ivory)" }}
+      ref={containerRef}>
+      
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <ParticleBackground />
+      </div>
 
-      {/* Subtle warm vignette blobs */}
-      <div className="pointer-events-none fixed top-[-15%] right-[-5%] w-[45vw] h-[45vw] rounded-full blur-[130px] z-0"
-        style={{ backgroundColor: "rgba(212, 145, 106, 0.07)" }} />
-      <div className="pointer-events-none fixed bottom-[-15%] left-[-5%] w-[50vw] h-[50vw] rounded-full blur-[150px] z-0"
-        style={{ backgroundColor: "rgba(107, 135, 160, 0.06)" }} />
+      {/* Editorial Vignette */}
+      <div className="pointer-events-none fixed inset-0 z-0 bg-gradient-radial from-transparent to-[var(--color-ivory)] opacity-60 mix-blend-multiply" />
 
       {/* ── Navbar ── */}
-      <nav className="nav-bar">
-        <Link href="/" className="text-xl font-bold tracking-tight transition-opacity hover:opacity-70"
+      <motion.nav 
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed top-0 w-full px-8 md:px-16 py-8 flex justify-between items-center z-50 bg-gradient-to-b from-[var(--color-ivory)] to-transparent"
+      >
+        <Link href="/" className="text-2xl font-bold tracking-tight hover:opacity-70 transition-opacity"
           style={{ fontFamily: "var(--font-serif)", color: "var(--color-charcoal)" }}>
-          Cone<span style={{ color: "var(--color-peach)" }}>x</span>ion
+          Cone<span style={{ color: "var(--color-peach)", fontStyle: "italic" }}>x</span>ion
         </Link>
-
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-8">
           {onlineCount !== null && (
-            <div className="hidden sm:flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-3 bg-white/40 backdrop-blur-md px-4 py-2 rounded-full border border-[var(--color-border)]">
               <span className="status-dot" />
-              <span className="label-xs">{onlineCount} Online</span>
+              <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-[var(--color-gray-brown)]">{onlineCount} Online</span>
             </div>
           )}
-          <Link href="/chat" className="btn-primary text-sm">
-            Enter App
+          <Link href="/chat">
+            <MagneticButton className="relative overflow-hidden group rounded-full bg-[var(--color-charcoal)] text-[var(--color-ivory)] px-8 py-3 text-sm font-medium transition-transform duration-500 ease-out">
+              <span className="relative z-10 flex items-center gap-2">Enter App <RiArrowRightLine className="group-hover:translate-x-1 transition-transform" /></span>
+              <div className="absolute inset-0 bg-[var(--color-gray-brown)] translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[0.16,1,0.3,1] z-0" />
+            </MagneticButton>
           </Link>
         </div>
-      </nav>
+      </motion.nav>
 
-      {/* ── Hero ── */}
-      <main className="flex-1 flex flex-col items-center justify-center w-full px-6 pt-36 pb-20 relative z-10 max-w-7xl mx-auto">
-
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="flex flex-col items-center text-center max-w-4xl"
+      <div className="w-full flex-1 relative z-10 flex flex-col pt-32 pb-24">
+        
+        {/* ── Hero ── */}
+        <motion.section 
+          style={{ y: heroY, opacity: heroOpacity }}
+          className="min-h-[85vh] flex flex-col justify-center items-center text-center px-6 relative"
         >
-          {/* Eyebrow badge */}
-          <motion.div variants={itemVariants}
-            className="inline-flex items-center gap-3 mb-10 px-5 py-2.5 rounded-full border"
-            style={{
-              backgroundColor: "var(--color-parchment)",
-              borderColor: "var(--color-border)",
-            }}>
-            <span className="status-dot" />
-            <span className="label-xs" style={{ color: "var(--color-gray-brown)" }}>Live</span>
-            <span style={{ color: "var(--color-border)" }}>·</span>
-            <span className="label-xs" style={{ color: "var(--color-gray-brown)" }}>Anonymous</span>
-            <span style={{ color: "var(--color-border)" }}>·</span>
-            <span className="label-xs" style={{ color: "var(--color-gray-brown)" }}>Instant</span>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+            className="mb-8 overflow-hidden rounded-full border border-[var(--color-border)] px-6 py-2 bg-white/40 backdrop-blur-md inline-flex items-center gap-3"
+          >
+             <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--color-gray-brown)]">Anonymous</span>
+             <span className="w-1 h-1 rounded-full bg-[var(--color-gray-light)]" />
+             <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--color-gray-brown)]">Encrypted</span>
+             <span className="w-1 h-1 rounded-full bg-[var(--color-gray-light)]" />
+             <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--color-gray-brown)]">Instant</span>
           </motion.div>
 
-          {/* Main heading */}
-          <motion.h1 variants={itemVariants}
-            className="heading-serif text-6xl md:text-8xl mb-6"
-            style={{ lineHeight: 1.0 }}>
-            Talk to someone<br />
-            <span style={{ color: "var(--color-gray-brown)", fontStyle: "italic" }}>new, right now.</span>
-          </motion.h1>
+          <h1 className="text-6xl sm:text-8xl md:text-[9rem] leading-[0.9] tracking-tighter text-[var(--color-charcoal)] mb-8 max-w-6xl">
+            <FadeUpText text="The Art of" />
+            <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontWeight: 400, color: "var(--color-gray-brown)" }}>
+              <FadeUpText text="Connection" delay={0.2} />
+            </span>
+          </h1>
 
-          <motion.p variants={itemVariants}
-            className="text-lg md:text-xl max-w-2xl mb-14 leading-relaxed"
-            style={{ color: "var(--color-gray-brown)" }}>
-            No sign-up. No waiting. Connect with strangers globally based on your
-            interests in seconds. Experience a new way to socialise, securely and anonymously.
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="text-lg md:text-xl text-[var(--color-gray-brown)] max-w-2xl font-light leading-relaxed mb-16"
+          >
+            A serene space to meet fascinating minds from across the globe. No profiles, no history, just pure, ephemeral conversation.
           </motion.p>
 
-          {/* CTA cards */}
-          <motion.div variants={itemVariants}
-            className="flex flex-col sm:flex-row items-stretch gap-5 w-full max-w-2xl justify-center">
-
-            <Link href="/chat?mode=text" className="group relative w-full sm:w-auto flex-1">
-              <TiltCard className="flex items-center gap-5 w-full transition-all duration-200
-                hover:shadow-[0_8px_32px_rgba(46,39,36,0.12)]">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200
-                  group-hover:scale-105"
-                  style={{ backgroundColor: "var(--color-beige)", color: "var(--color-charcoal-80)" }}>
-                  <RiMessage3Line className="text-2xl" />
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-col sm:flex-row gap-6 w-full max-w-xl"
+          >
+            <Link href="/chat?mode=text" className="flex-1 group">
+              <div className="warm-panel h-full flex items-center justify-between p-6 transition-all duration-500 hover:bg-[var(--color-beige)] hover:shadow-xl hover:-translate-y-1">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-[var(--color-ivory)] flex items-center justify-center text-[var(--color-charcoal)] shadow-sm border border-[var(--color-border)] group-hover:scale-110 transition-transform duration-500">
+                    <RiMessage3Line className="text-xl" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-semibold text-[var(--color-charcoal)]">Text Studio</h3>
+                    <p className="text-xs text-[var(--color-gray-light)]">Distraction-free typing</p>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <h3 className="text-lg font-semibold mb-0.5 transition-colors"
-                    style={{ color: "var(--color-charcoal)" }}>Text Chat</h3>
-                  <p className="text-sm" style={{ color: "var(--color-gray-light)" }}>
-                    Type &amp; connect anonymously
-                  </p>
-                </div>
-              </TiltCard>
+                <RiArrowRightLine className="text-[var(--color-gray-light)] group-hover:text-[var(--color-charcoal)] group-hover:translate-x-2 transition-all duration-500" />
+              </div>
             </Link>
 
-            <Link href="/chat?mode=video" className="group relative w-full sm:w-auto flex-1">
-              <TiltCard className="flex items-center gap-5 w-full transition-all duration-200
-                hover:shadow-[0_8px_32px_rgba(46,39,36,0.12)]">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200
-                  group-hover:scale-105"
-                  style={{ backgroundColor: "var(--color-beige)", color: "var(--color-charcoal-80)" }}>
-                  <RiVideoChatLine className="text-2xl" />
+            <Link href="/chat?mode=video" className="flex-1 group">
+              <div className="warm-panel h-full flex items-center justify-between p-6 transition-all duration-500 hover:bg-[var(--color-charcoal)] hover:shadow-xl hover:-translate-y-1">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-[var(--color-charcoal-80)] flex items-center justify-center text-[var(--color-ivory)] group-hover:bg-[var(--color-ivory)] group-hover:text-[var(--color-charcoal)] transition-colors duration-500">
+                    <RiVideoChatLine className="text-xl" />
+                  </div>
+                  <div className="text-left group-hover:text-[var(--color-ivory)] transition-colors duration-500">
+                    <h3 className="font-semibold text-[var(--color-charcoal)] group-hover:text-[var(--color-ivory)] transition-colors">Video Lounge</h3>
+                    <p className="text-xs text-[var(--color-gray-light)] group-hover:text-white/60 transition-colors">Face-to-face encounters</p>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <h3 className="text-lg font-semibold mb-0.5 transition-colors"
-                    style={{ color: "var(--color-charcoal)" }}>Video Chat</h3>
-                  <p className="text-sm" style={{ color: "var(--color-gray-light)" }}>
-                    Face to face, instantly
-                  </p>
-                </div>
-              </TiltCard>
+                <RiArrowRightLine className="text-[var(--color-gray-light)] group-hover:text-[var(--color-ivory)] group-hover:translate-x-2 transition-all duration-500" />
+              </div>
             </Link>
-          </motion.div>
-        </motion.div>
-
-        {/* ── Thin editorial divider ── */}
-        <motion.div
-          initial={{ opacity: 0, scaleX: 0 }}
-          whileInView={{ opacity: 1, scaleX: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
-          className="w-full max-w-xs mt-24 mb-20 divider origin-center"
-        />
-
-        {/* ── Feature Bento Grid ── */}
-        <motion.section
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: "-100px" }}
-          variants={containerVariants}
-          className="w-full grid grid-cols-1 md:grid-cols-12 gap-5"
-        >
-          {/* Feature 1 — Wide */}
-          <motion.div variants={itemVariants}
-            className="md:col-span-7 warm-panel p-10 group relative overflow-hidden transition-all duration-300
-              hover:shadow-[0_12px_40px_rgba(46,39,36,0.10)]">
-            <div className="absolute top-0 right-0 w-56 h-56 rounded-full blur-[80px] pointer-events-none
-              opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-              style={{ backgroundColor: "rgba(124, 140, 101, 0.08)", marginRight: -40, marginTop: -40 }} />
-            <div className="w-11 h-11 rounded-xl mb-6 flex items-center justify-center"
-              style={{ backgroundColor: "var(--color-beige)", color: "var(--color-charcoal-80)" }}>
-              <RiFlashlightLine className="text-2xl" />
-            </div>
-            <h4 className="heading-serif text-3xl mb-4">Direct WebRTC</h4>
-            <p className="text-lg leading-relaxed max-w-md" style={{ color: "var(--color-gray-brown)" }}>
-              Your video and audio streams are strictly peer-to-peer. We do not intermediate or touch
-              your data, guaranteeing the lowest possible latency.
-            </p>
-          </motion.div>
-
-          {/* Feature 2 — Narrow */}
-          <motion.div variants={itemVariants}
-            className="md:col-span-5 warm-panel p-10 group relative overflow-hidden transition-all duration-300
-              hover:shadow-[0_12px_40px_rgba(46,39,36,0.10)]">
-            <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full blur-[80px] pointer-events-none
-              opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-              style={{ backgroundColor: "rgba(107, 135, 160, 0.08)", marginLeft: -30, marginBottom: -30 }} />
-            <div className="w-11 h-11 rounded-xl mb-6 flex items-center justify-center"
-              style={{ backgroundColor: "var(--color-beige)", color: "var(--color-charcoal-80)" }}>
-              <RiUserSmileLine className="text-2xl" />
-            </div>
-            <h4 className="heading-serif text-3xl mb-4">Smart Matchmaking</h4>
-            <p className="text-lg leading-relaxed" style={{ color: "var(--color-gray-brown)" }}>
-              Filter by tags to find people who actually share your interests, increasing the quality of
-              every connection.
-            </p>
-          </motion.div>
-
-          {/* Feature 3 — Full Width */}
-          <motion.div variants={itemVariants}
-            className="md:col-span-12 warm-panel p-10 group flex flex-col md:flex-row items-center gap-10
-              relative overflow-hidden transition-all duration-300 hover:shadow-[0_12px_40px_rgba(46,39,36,0.10)]">
-            <div className="flex-1">
-              <div className="w-11 h-11 rounded-xl mb-6 flex items-center justify-center"
-                style={{ backgroundColor: "var(--color-beige)", color: "var(--color-charcoal-80)" }}>
-                <RiLockPasswordLine className="text-2xl" />
-              </div>
-              <h4 className="heading-serif text-3xl mb-4">Absolute Privacy</h4>
-              <p className="text-lg leading-relaxed max-w-2xl" style={{ color: "var(--color-gray-brown)" }}>
-                Connections vanish the moment you skip or disconnect. No history is stored, no traces are
-                left behind. Just raw, ephemeral human connection.
-              </p>
-            </div>
-
-            {/* Animated waveform illustration */}
-            <div className="hidden md:flex flex-1 justify-end">
-              <div className="w-full max-w-sm h-40 rounded-2xl flex items-center justify-center relative overflow-hidden"
-                style={{
-                  backgroundColor: "var(--color-parchment)",
-                  border: "1px solid var(--color-border)",
-                }}>
-                <div className="flex items-center gap-1.5">
-                  {[...Array(24)].map((_, i) => (
-                    <motion.div
-                      key={i}
-                      animate={{ height: ["10px", `${Math.random() * 44 + 14}px`, "10px"] }}
-                      transition={{ duration: 0.9 + Math.random() * 0.6, repeat: Infinity, ease: "easeInOut" }}
-                      className="w-1.5 rounded-full"
-                      style={{ backgroundColor: i % 3 === 0
-                        ? "var(--color-gray-brown)"
-                        : i % 3 === 1
-                          ? "var(--color-sand)"
-                          : "var(--color-gray-light)",
-                        opacity: 0.7 }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
           </motion.div>
         </motion.section>
-      </main>
+
+        {/* ── Abstract Divider ── */}
+        <div className="w-full flex justify-center py-20 overflow-hidden">
+          <motion.div 
+            initial={{ scaleX: 0 }}
+            whileInView={{ scaleX: 1 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
+            className="h-px bg-[var(--color-border)] w-full max-w-6xl mx-auto origin-left"
+          />
+        </div>
+
+        {/* ── Feature 1: The Canvas ── */}
+        <section className="min-h-[80vh] flex items-center py-20 px-6 md:px-16 w-full max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
+            <div className="order-2 lg:order-1 relative h-[500px] w-full rounded-[2rem] overflow-hidden warm-panel flex items-center justify-center group">
+              <div className="absolute inset-0 bg-gradient-to-tr from-[rgba(124,140,101,0.05)] to-[rgba(107,135,160,0.05)]" />
+              <motion.div 
+                whileInView={{ rotate: [0, 5, 0], scale: [0.95, 1.05, 0.95] }}
+                transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                className="w-64 h-64 rounded-full border border-[var(--color-border)] opacity-20"
+              />
+              <motion.div 
+                whileInView={{ rotate: [0, -5, 0], scale: [1.05, 0.95, 1.05] }}
+                transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                className="absolute w-80 h-80 rounded-full border border-[var(--color-border)] opacity-10"
+              />
+              <RiFlashlightLine className="absolute text-8xl text-[var(--color-gray-light)] opacity-20 group-hover:scale-110 group-hover:text-[var(--color-charcoal)] transition-all duration-700 ease-out" />
+            </div>
+            
+            <div className="order-1 lg:order-2 space-y-8">
+              <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-[var(--color-gray-brown)]">01 — Architecture</span>
+              <h2 className="text-5xl md:text-6xl text-[var(--color-charcoal)] leading-tight">
+                Peer-to-peer <br/>
+                <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--color-gray-brown)" }}>perfection.</span>
+              </h2>
+              <p className="text-lg text-[var(--color-gray-brown)] leading-relaxed font-light max-w-md">
+                Experience latency so low it feels like they're in the room with you. By utilizing raw WebRTC connections, your audio and video streams bypass intermediate servers entirely.
+              </p>
+              <div className="h-px w-12 bg-[var(--color-charcoal)]" />
+            </div>
+          </div>
+        </section>
+
+        {/* ── Feature 2: Serendipity ── */}
+        <section className="min-h-[80vh] flex items-center py-20 px-6 md:px-16 w-full max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
+            <div className="space-y-8">
+              <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-[var(--color-gray-brown)]">02 — Curation</span>
+              <h2 className="text-5xl md:text-6xl text-[var(--color-charcoal)] leading-tight">
+                Filtered <br/>
+                <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--color-gray-brown)" }}>serendipity.</span>
+              </h2>
+              <p className="text-lg text-[var(--color-gray-brown)] leading-relaxed font-light max-w-md">
+                Don't leave it entirely to chance. Select your aesthetic, enter your interests, and let our algorithm pair you with someone whose mind resonates with yours.
+              </p>
+              <div className="flex gap-3 flex-wrap max-w-md">
+                {["Art", "Philosophy", "Cinema", "Design"].map((tag, i) => (
+                  <motion.span 
+                    key={tag}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.1 + 0.5 }}
+                    className="px-4 py-2 rounded-full border border-[var(--color-border)] text-xs text-[var(--color-charcoal)] bg-white/50"
+                  >
+                    {tag}
+                  </motion.span>
+                ))}
+              </div>
+            </div>
+
+            <div className="relative h-[500px] w-full rounded-[2rem] overflow-hidden warm-panel flex items-center justify-center group">
+              <div className="absolute inset-0 bg-gradient-to-bl from-[rgba(212,145,106,0.05)] to-[rgba(124,140,101,0.05)]" />
+              <div className="flex flex-col gap-4">
+                <motion.div 
+                  whileInView={{ x: [-20, 20, -20] }}
+                  transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                  className="w-48 h-16 rounded-2xl bg-white/40 border border-[var(--color-border)] backdrop-blur-sm"
+                />
+                <motion.div 
+                  whileInView={{ x: [20, -20, 20] }}
+                  transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+                  className="w-56 h-16 rounded-2xl bg-white/60 border border-[var(--color-border)] backdrop-blur-sm ml-8"
+                />
+                <motion.div 
+                  whileInView={{ x: [-10, 10, -10] }}
+                  transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+                  className="w-40 h-16 rounded-2xl bg-white/30 border border-[var(--color-border)] backdrop-blur-sm ml-4"
+                />
+              </div>
+              <RiUserSmileLine className="absolute text-8xl text-[var(--color-gray-light)] opacity-20 group-hover:scale-110 group-hover:text-[var(--color-charcoal)] transition-all duration-700 ease-out" />
+            </div>
+          </div>
+        </section>
+
+        {/* ── Feature 3: The Void ── */}
+        <section className="min-h-[80vh] flex items-center py-20 px-6 md:px-16 w-full max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
+            <div className="order-2 lg:order-1 relative h-[500px] w-full rounded-[2rem] overflow-hidden bg-[var(--color-charcoal)] flex items-center justify-center group transition-shadow hover:shadow-2xl">
+              <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay" />
+              <motion.div 
+                whileInView={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }}
+                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                className="w-64 h-64 rounded-full bg-[var(--color-ivory)] blur-3xl absolute"
+              />
+              <RiLockPasswordLine className="relative z-10 text-8xl text-[var(--color-ivory)] opacity-50 group-hover:scale-110 group-hover:opacity-100 transition-all duration-700 ease-out" />
+            </div>
+
+            <div className="order-1 lg:order-2 space-y-8">
+              <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-[var(--color-gray-brown)]">03 — Secrecy</span>
+              <h2 className="text-5xl md:text-6xl text-[var(--color-charcoal)] leading-tight">
+                Leave <br/>
+                <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--color-gray-brown)" }}>no trace.</span>
+              </h2>
+              <p className="text-lg text-[var(--color-gray-brown)] leading-relaxed font-light max-w-md">
+                Once a connection is severed, it dissolves into the ether. No logs, no history, no archives. What is said in the room, stays in the room—until the room ceases to exist.
+              </p>
+              <Link href="/privacy" className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-charcoal)] hover:text-[var(--color-peach)] transition-colors">
+                Read our Privacy Manifesto <RiArrowRightLine />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+      </div>
 
       <Footer />
     </div>
