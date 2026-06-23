@@ -108,7 +108,7 @@ export default function Home() {
           )}
           <Link href="/launch">
             <MagneticButton className="relative overflow-hidden group rounded-full bg-[var(--color-charcoal)] text-[var(--color-ivory)] px-8 py-3 text-sm font-medium transition-transform duration-500 ease-out">
-              <span className="relative z-10 flex items-center gap-2">Enter App <RiArrowRightLine className="group-hover:translate-x-1 transition-transform" /></span>
+              <span className="relative z-10 flex items-center gap-2">Join Waitlist <RiArrowRightLine className="group-hover:translate-x-1 transition-transform" /></span>
               <div className="absolute inset-0 bg-[var(--color-gray-brown)] translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[0.16,1,0.3,1] z-0" />
             </MagneticButton>
           </Link>
@@ -157,7 +157,7 @@ export default function Home() {
             transition={{ duration: 1, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="flex flex-col sm:flex-row gap-6 w-full max-w-xl"
           >
-            <Link href="/launch" className="flex-1 group">
+            <Link href="/chat?mode=text" className="flex-1 group">
               <div className="warm-panel h-full flex items-center justify-between p-6 transition-all duration-500 hover:bg-[var(--color-beige)] hover:shadow-xl hover:-translate-y-1">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-[var(--color-ivory)] flex items-center justify-center text-[var(--color-charcoal)] shadow-sm border border-[var(--color-border)] group-hover:scale-110 transition-transform duration-500">
@@ -172,7 +172,7 @@ export default function Home() {
               </div>
             </Link>
 
-            <Link href="/launch" className="flex-1 group">
+            <Link href="/chat?mode=video" className="flex-1 group">
               <div className="warm-panel h-full flex items-center justify-between p-6 transition-all duration-500 hover:bg-[var(--color-charcoal)] hover:shadow-xl hover:-translate-y-1">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-[var(--color-charcoal-80)] flex items-center justify-center text-[var(--color-ivory)] group-hover:bg-[var(--color-ivory)] group-hover:text-[var(--color-charcoal)] transition-colors duration-500">
