@@ -83,7 +83,7 @@ const ArchitectureGraphic = () => {
             borderRadius: ['25%', '35%', '25%']
           }}
           transition={{
-            rotate: { duration: 25 + i * 5, repeat: Infinity, ease: "linear", direction: i % 2 === 0 ? "normal" : "reverse" },
+            rotate: { duration: 25 + i * 5, repeat: Infinity, ease: "linear", repeatType: i % 2 === 0 ? "loop" : "reverse" },
             scale: { duration: 5 + i, repeat: Infinity, ease: "easeInOut" }
           }}
         >

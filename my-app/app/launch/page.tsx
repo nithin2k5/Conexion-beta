@@ -25,6 +25,16 @@ const FadeUpText = ({ text, delay = 0 }: { text: string; delay?: number }) => {
     </div>
   );
 };
+const FEATURES = [
+  "End-to-End Encryption",
+  "Zero Knowledge Architecture",
+  "Interest-Based Curations",
+  "AI-Powered Moderation",
+  "High-Fidelity Video",
+  "Anonymous Encounters",
+  "No Sign-ups Required",
+  "Instant Connectivity",
+];
 
 export default function LaunchingSoon() {
   return (
@@ -104,6 +114,32 @@ export default function LaunchingSoon() {
           <button className="bg-[var(--color-charcoal)] text-[var(--color-ivory)] w-14 h-14 rounded-2xl flex items-center justify-center hover:bg-[var(--color-charcoal-80)] transition-colors shrink-0">
             <RiMailSendLine className="text-xl" />
           </button>
+        </motion.div>
+
+        {/* Features Slider */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1, delay: 1.2 }}
+          className="w-screen relative left-1/2 -translate-x-1/2 mt-24 overflow-hidden border-y border-[var(--color-border)] py-8 bg-white/30 backdrop-blur-md"
+        >
+          <div className="absolute left-0 top-0 bottom-0 w-24 md:w-64 bg-gradient-to-r from-[var(--color-ivory)] to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-24 md:w-64 bg-gradient-to-l from-[var(--color-ivory)] to-transparent z-10 pointer-events-none" />
+          
+          <motion.div 
+            className="flex w-fit whitespace-nowrap items-center"
+            animate={{ x: ["0%", "-33.333333%"] }}
+            transition={{ repeat: Infinity, ease: "linear", duration: 30 }}
+          >
+            {[...FEATURES, ...FEATURES, ...FEATURES].map((feature, i) => (
+              <div key={i} className="flex items-center">
+                <span className="text-[12px] md:text-[14px] uppercase tracking-[0.2em] font-bold text-[var(--color-charcoal)] px-8 md:px-16">
+                  {feature}
+                </span>
+                <span className="text-[var(--color-peach)] text-lg">✦</span>
+              </div>
+            ))}
+          </motion.div>
         </motion.div>
 
       </main>
