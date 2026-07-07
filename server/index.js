@@ -339,7 +339,7 @@ wss.on("connection", (ws) => {
         const safeText = msg.text.trim();
         if (!safeText || safeText.length > 2000) break;
         // Server-side hate speech filter
-        const hateSpeechRegex = /\b(nigger|faggot|spic|chink)\b/i;
+        const hateSpeechRegex = /\b(nigger|faggot|spic|chink|porn|sex|tits|dick|pussy|cock|boobs|cunt|slut|whore)\b/i;
         if (hateSpeechRegex.test(safeText)) break;
         {
           // Relay optional reply-quote context (sanitised, max 200 chars)

@@ -58,6 +58,8 @@ const HATE_WORDS = [
   // general hate / incitement
   "kill yourself","kys","go die","hang yourself",
   "nazi","heil","white power","white supremacy",
+  // explicit sexual / pornographic
+  "porn","sex","tits","dick","pussy","cock","boobs","vagina","penis","cunt","slut","whore","fuck","bitch",
 ];
 
 function detectHateSpeech(text: string): { flagged: boolean; words: string[] } {
