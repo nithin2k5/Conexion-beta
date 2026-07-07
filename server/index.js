@@ -35,6 +35,7 @@ const express = require("express");
 const cors    = require("cors");
 const { WebSocketServer, WebSocket } = require("ws");
 const { randomUUID } = require("crypto");
+const rateLimit = require("express-rate-limit");
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ const PORT   = process.env.PORT    || 3001;
 const ORIGIN = process.env.ORIGIN  || "http://localhost:3000";
 const MAX_PAYLOAD = 65536; // 64KB max websocket payload
 const RATE_LIMIT_MSGS = 20; // max messages per second
+const MAX_TOTAL_CLIENTS = 500; // max concurrent clients
 
 
 // ── Express app ───────────────────────────────────────────────────────────────
@@ -50,6 +52,7 @@ const app = express();
 
 app.use(cors({ origin: ORIGIN }));
 app.use(express.json());
+app.use(rateLimit({ windowMs: 60_000, max: 60 })); // 60 req/min per IP
 
 // ── REST routes ───────────────────────────────────────────────────────────────
 
@@ -114,6 +117,12 @@ const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD });
  */
 server.on("upgrade", (req, socket, head) => {
   if (req.url === "/ws") {
+    if (clients.size >= MAX_TOTAL_CLIENTS) {
+      socket.write("HTTP/1.1 503 Service Unavailable\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+
     const reqOrigin = req.headers.origin;
 
     // Fix 2: Block connections with no origin header AND wrong origins
@@ -329,6 +338,9 @@ wss.on("connection", (ws) => {
         if (!client.partnerId || typeof msg.text !== "string") break;
         const safeText = msg.text.trim();
         if (!safeText || safeText.length > 2000) break;
+        // Server-side hate speech filter
+        const hateSpeechRegex = /\b(nigger|faggot|spic|chink)\b/i;
+        if (hateSpeechRegex.test(safeText)) break;
         {
           // Relay optional reply-quote context (sanitised, max 200 chars)
           const replyQuote = typeof msg.replyTo?.text === "string"

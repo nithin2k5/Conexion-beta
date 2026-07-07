@@ -248,7 +248,14 @@ function ChatApp() {
 
   const setupWebRTC = useCallback((role: "caller" | "callee") => {
     if (pcRef.current) pcRef.current.close();
-    const pc = new RTCPeerConnection({ iceServers });
+    const hasTurn = iceServers.some(s => {
+      const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
+      return urls.some(u => u.startsWith("turn:"));
+    });
+    const pc = new RTCPeerConnection({
+      iceServers,
+      iceTransportPolicy: hasTurn ? "relay" : "all"
+    });
     pcRef.current = pc;
     if (localStream) localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
     pc.ontrack = event => { if (remoteVideoRef.current && event.streams[0]) remoteVideoRef.current.srcObject = event.streams[0]; };
