@@ -75,7 +75,13 @@ app.get("/api/stats", (_req, res) => {
 });
 
 /** ICE / TURN credentials — consumed by the client before WebRTC setup */
-app.get("/api/turn-credentials", (_req, res) => {
+app.get("/api/turn-credentials", (req, res) => {
+  // Fix 1: Require request to originate from the allowed frontend origin
+  const reqOrigin = req.headers.origin || req.headers.referer || "";
+  if (!reqOrigin.startsWith(ORIGIN)) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
   const iceServers = [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:global.stun.twilio.com:3478" },
@@ -109,14 +115,27 @@ const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD });
 server.on("upgrade", (req, socket, head) => {
   if (req.url === "/ws") {
     const reqOrigin = req.headers.origin;
-    // Check if origin matches allowed ORIGIN
-    if (ORIGIN !== "*" && reqOrigin && !reqOrigin.startsWith(ORIGIN)) {
+
+    // Fix 2: Block connections with no origin header AND wrong origins
+    if (!reqOrigin || (ORIGIN !== "*" && !reqOrigin.startsWith(ORIGIN))) {
       socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
       socket.destroy();
       return;
     }
 
+    // Fix 3: Enforce per-IP connection limit
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0].trim() || req.socket.remoteAddress || "unknown";
+    const currentConns = ipConnections.get(ip) || 0;
+    if (currentConns >= MAX_CONNS_PER_IP) {
+      socket.write('HTTP/1.1 429 Too Many Requests\r\n\r\n');
+      socket.destroy();
+      console.warn(`[rate] IP ${ip} exceeded connection limit (${MAX_CONNS_PER_IP})`);
+      return;
+    }
+    ipConnections.set(ip, currentConns + 1);
+
     wss.handleUpgrade(req, socket, head, (ws) => {
+      ws._remoteIP = ip; // stash IP for cleanup in the close handler
       wss.emit("connection", ws, req);
     });
   } else {
@@ -126,8 +145,12 @@ server.on("upgrade", (req, socket, head) => {
 
 // ── In-memory state ───────────────────────────────────────────────────────────
 
-/** @type {Map<string, { ws: WebSocket, interests: string[], partnerId: string|null, sessionId: string|null, msgCount: number, windowStart: number }>} */
+/** @type {Map<string, { ws: WebSocket, name: string, interests: string[], partnerId: string|null, sessionId: string|null, msgCount: number, windowStart: number }>} */
 const clients = new Map();
+
+// Fix 3: Track active WebSocket connections per IP to prevent flood/DoS
+const MAX_CONNS_PER_IP = 10;
+const ipConnections = new Map(); // ip → connection count
 
 /** Ordered list of client IDs waiting to be matched */
 const queue = [];
@@ -224,8 +247,8 @@ function tryMatch(newId) {
   const setA             = new Set(newClient.interests);
   const sharedInterests  = partnerClient.interests.filter((i) => setA.has(i));
 
-  send(newClient.ws,    { type: "matched", sharedInterests, sessionId, role: "caller" });
-  send(partnerClient.ws, { type: "matched", sharedInterests, sessionId, role: "callee" });
+  send(newClient.ws,     { type: "matched", sharedInterests, sessionId, role: "caller", partnerName: partnerClient.name });
+  send(partnerClient.ws, { type: "matched", sharedInterests, sessionId, role: "callee", partnerName: newClient.name });
 
   console.log(
     `[match] ${newId.slice(0, 6)} ↔ ${partnerId.slice(0, 6)}` +
@@ -253,7 +276,7 @@ function detachPartner(clientId) {
 
 wss.on("connection", (ws) => {
   const id = randomUUID();
-  clients.set(id, { ws, interests: [], partnerId: null, sessionId: null, msgCount: 0, windowStart: Date.now() });
+  clients.set(id, { ws, name: "Anonymous", interests: [], partnerId: null, sessionId: null, msgCount: 0, windowStart: Date.now() });
 
   broadcast({ type: "online_count", count: clients.size });
   console.log(`[+] ${id.slice(0, 6)} connected  | total: ${clients.size}`);
@@ -288,6 +311,10 @@ wss.on("connection", (ws) => {
         client.interests = Array.isArray(msg.interests) 
           ? msg.interests.filter(i => typeof i === "string").map(i => i.substring(0, 50)) 
           : [];
+        // Save display name (sanitised, max 30 chars, fallback to Anonymous)
+        client.name = typeof msg.name === "string" && msg.name.trim()
+          ? msg.name.trim().substring(0, 30)
+          : "Anonymous";
         tryMatch(id);
         break;
 
@@ -303,8 +330,17 @@ wss.on("connection", (ws) => {
         const safeText = msg.text.trim();
         if (!safeText || safeText.length > 2000) break;
         {
+          // Relay optional reply-quote context (sanitised, max 200 chars)
+          const replyQuote = typeof msg.replyTo?.text === "string"
+            ? msg.replyTo.text.trim().substring(0, 200)
+            : undefined;
           const partner = clients.get(client.partnerId);
-          if (partner) send(partner.ws, { type: "message", text: safeText, ts: Date.now() });
+          if (partner) send(partner.ws, {
+            type: "message",
+            text: safeText,
+            ts: Date.now(),
+            ...(replyQuote ? { replyTo: { text: replyQuote } } : {}),
+          });
         }
         break;
 
@@ -348,6 +384,15 @@ wss.on("connection", (ws) => {
     detachPartner(id);
     removeFromQueue(id);
     clients.delete(id);
+
+    // Fix 3: Decrement per-IP connection count on disconnect
+    const ip = ws._remoteIP;
+    if (ip) {
+      const n = ipConnections.get(ip) || 0;
+      if (n <= 1) ipConnections.delete(ip);
+      else ipConnections.set(ip, n - 1);
+    }
+
     broadcast({ type: "online_count", count: clients.size });
     console.log(`[-] ${id.slice(0, 6)} disconnected | total: ${clients.size}`);
   });

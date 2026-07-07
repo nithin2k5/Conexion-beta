@@ -91,7 +91,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api/stats', '') || "
 
 type Status = "idle" | "connecting" | "queued" | "chatting" | "ended";
 type ChatMode = "text" | "video";
-interface Msg { id: string; from: "me" | "them" | "system"; text: string; ts?: number; }
+interface Msg { id: string; from: "me" | "them" | "system"; text: string; ts?: number; replyTo?: { text: string; from: "me" | "them" }; }
 
 function fmt(s: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -133,7 +133,29 @@ function ChatApp() {
     if (typeof window === "undefined") return false;
     return sessionStorage.getItem("conexion_disclaimer_accepted") !== "1";
   });
-  const acceptDisclaimer = () => { sessionStorage.setItem("conexion_disclaimer_accepted", "1"); setShowDisclaimer(false); };
+  const [showNamePrompt, setShowNamePrompt] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return !sessionStorage.getItem("conexion_user_name");
+  });
+  const [myName, setMyName] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return sessionStorage.getItem("conexion_user_name") || "";
+  });
+  const [nameInput, setNameInput] = useState("");
+  const [partnerName, setPartnerName] = useState("Stranger");
+
+  const acceptDisclaimer = () => {
+    sessionStorage.setItem("conexion_disclaimer_accepted", "1");
+    setShowDisclaimer(false);
+    // If name not yet set, show name prompt next
+    if (!sessionStorage.getItem("conexion_user_name")) setShowNamePrompt(true);
+  };
+  const saveName = () => {
+    const n = nameInput.trim() || "Anonymous";
+    sessionStorage.setItem("conexion_user_name", n);
+    setMyName(n);
+    setShowNamePrompt(false);
+  };
 
   const [status, setStatus] = useState<Status>("idle");
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -153,6 +175,11 @@ function ChatApp() {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [iceServers, setIceServers] = useState<RTCIceServer[]>([{ urls: "stun:stun.l.google.com:19302" }]);
   const [camError, setCamError] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Msg | null>(null);
+  const replyBarRef = useRef<HTMLDivElement>(null);
+  const [showEndedPopup, setShowEndedPopup] = useState(false);
+  const [endedBy, setEndedBy] = useState<"me" | "them">("them");
+  const sessionDurationRef = useRef(0);
   
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -177,6 +204,16 @@ function ChatApp() {
     if (status === "chatting") timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
     else if (timerRef.current) clearInterval(timerRef.current);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [status]);
+
+  // Show ended popup whenever a conversation finishes
+  useEffect(() => {
+    if (status === "ended") {
+      sessionDurationRef.current = elapsed;
+      const t = setTimeout(() => setShowEndedPopup(true), 400);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -236,10 +273,17 @@ function ChatApp() {
         case "queued": setStatus("queued"); setQueuePosition(msg.position); break;
         case "matched":
           setSharedInterests(msg.sharedInterests ?? []); setStatus("chatting"); setElapsed(0);
+          setPartnerName(msg.partnerName || "Stranger");
           setMsgs([{ id: crypto.randomUUID(), from: "system", text: (msg.sharedInterests ?? []).length > 0 ? `Matched! Shared interests: ${(msg.sharedInterests ?? []).join(", ")}` : "A new connection has been established." }]);
           if (mode === "video") setupWebRTC(msg.role);
           break;
-        case "message": setMsgs(m => [...m, { id: crypto.randomUUID(), from: "them", text: msg.text }]); break;
+        case "message": {
+          const incomingReplyTo = msg.replyTo?.text
+            ? { text: msg.replyTo.text, from: "them" as const }
+            : undefined;
+          setMsgs(m => [...m, { id: crypto.randomUUID(), from: "them", text: msg.text, replyTo: incomingReplyTo }]);
+          break;
+        }
         case "rtc_signal":
           if (!pcRef.current) break;
           try {
@@ -249,7 +293,7 @@ function ChatApp() {
           } catch (err) { console.error("RTC Error", err); }
           break;
         case "partner_left":
-          setStatus("ended"); if (pcRef.current) pcRef.current.close(); if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+          setStatus("ended"); setEndedBy("them"); if (pcRef.current) pcRef.current.close(); if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
           setMsgs(m => [...m, { id: crypto.randomUUID(), from: "system", text: "Connection severed by the other party." }]);
           break;
       }
@@ -269,25 +313,43 @@ function ChatApp() {
 
   const startSearch = () => {
     let ws = wsRef.current; if (!ws || ws.readyState > WebSocket.OPEN) ws = connectWS();
-    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "queue", interests: tags }));
-    else ws.addEventListener("open", () => ws?.send(JSON.stringify({ type: "queue", interests: tags })), { once: true });
+    const queuePayload = JSON.stringify({ type: "queue", interests: tags, name: myName || "Anonymous" });
+    if (ws.readyState === WebSocket.OPEN) ws.send(queuePayload);
+    else ws.addEventListener("open", () => ws?.send(queuePayload), { once: true });
     setStatus("connecting"); setElapsed(0); setMsgs([]); setSharedInterests([]); setQueuePosition(null);
+    setShowEndedPopup(false); setReplyingTo(null); setPartnerName("Stranger");
   };
 
   const stopSearch = () => { wsSend({ type: "cancel" }); setStatus("idle"); };
-  const skip = () => { wsSend({ type: "skip" }); setStatus("connecting"); setElapsed(0); setMsgs([]); setShowReport(false); };
-  const endCall = () => { wsSend({ type: "end" }); setStatus("ended"); setMsgs(m => [...m, sys("You closed the connection.")]); setShowReport(false); };
+  const skip = () => { wsSend({ type: "skip" }); setStatus("connecting"); setElapsed(0); setMsgs([]); setShowReport(false); setShowEndedPopup(false); setReplyingTo(null); };
+  const endCall = () => { wsSend({ type: "end" }); setEndedBy("me"); setStatus("ended"); setMsgs(m => [...m, sys("You closed the connection.")]); setShowReport(false); };
   
   const reportUser = (reason: string) => { wsSend({ type: "report", reason }); setMsgs(m => [...m, sys("User reported.")]); setShowReport(false); setTimeout(() => skip(), 800); };
 
-  const send = () => { if (!draft.trim() || status !== "chatting") return; wsSend({ type: "message", text: draft.trim() }); setMsgs(m => [...m, { id: crypto.randomUUID(), from: "me", text: draft.trim() }]); setDraft(""); };
+  const send = () => {
+    if (!draft.trim() || status !== "chatting") return;
+    const { flagged } = detectHateSpeech(draft);
+    if (flagged) return;
+    const trimmed = draft.trim();
+    const payload: Record<string, unknown> = { type: "message", text: trimmed };
+    if (replyingTo) payload.replyTo = { text: replyingTo.text };
+    wsSend(payload);
+    setMsgs(m => [...m, {
+      id: crypto.randomUUID(),
+      from: "me",
+      text: trimmed,
+      replyTo: replyingTo && replyingTo.from !== "system" ? { text: replyingTo.text, from: replyingTo.from } : undefined,
+    }]);
+    setDraft("");
+    setReplyingTo(null);
+  };
 
   const switchMode = (m: ChatMode) => { if (status === "chatting" || status === "connecting" || status === "queued") return; setMode(m); setStatus("idle"); setMsgs([]); };
   const isSearching = status === "connecting" || status === "queued";
 
   /* ───────────────────────── RENDERING ───────────────────────── */
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden bg-[var(--color-ivory)] text-[var(--color-charcoal)] font-sans">
+    <div className="flex flex-col h-[100dvh] w-full overflow-hidden bg-[var(--color-ivory)] text-[var(--color-charcoal)] font-sans">
       <ParticleBackground />
 
       {/* Well-behaviour Disclaimer Modal */}
@@ -365,6 +427,94 @@ function ChatApp() {
                 >
                   Go back
                 </Link>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Name Prompt Modal */}
+      <AnimatePresence>
+        {!showDisclaimer && showNamePrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center px-4"
+            style={{ backgroundColor: "rgba(30, 25, 20, 0.65)", backdropFilter: "blur(8px)" }}
+          >
+            <motion.div
+              initial={{ scale: 0.92, y: 24, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.92, y: 24, opacity: 0 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full max-w-sm rounded-[2rem] overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.25)]"
+              style={{ backgroundColor: "var(--color-warm-white)", border: "1px solid var(--color-border)" }}
+            >
+              {/* Top accent strip */}
+              <div className="h-1 w-full bg-gradient-to-r from-[var(--color-charcoal)] via-[var(--color-gray-brown)] to-[var(--color-peach)]" />
+
+              <div className="px-8 pt-8 pb-9 flex flex-col gap-6">
+                {/* Header */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-xl">✦</span>
+                    <span className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: "var(--color-gray-brown)" }}>One last thing</span>
+                  </div>
+                  <h2 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "var(--font-serif)", color: "var(--color-charcoal)" }}>
+                    What shall we<br />
+                    <span style={{ fontStyle: "italic", color: "var(--color-gray-brown)" }}>call you?</span>
+                  </h2>
+                  <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--color-gray-light)" }}>
+                    Your name is only shared with your matched partner — never stored on our servers.
+                  </p>
+                </div>
+
+                {/* Input */}
+                <div
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all focus-within:border-[var(--color-charcoal)] focus-within:ring-2 focus-within:ring-[var(--color-charcoal)]/10"
+                  style={{ border: "1px solid var(--color-border)", backgroundColor: "var(--color-parchment)" }}
+                >
+                  <span className="text-base">👤</span>
+                  <input
+                    autoFocus
+                    maxLength={30}
+                    value={nameInput}
+                    onChange={e => setNameInput(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && saveName()}
+                    placeholder="Enter your name…"
+                    className="flex-1 bg-transparent border-none outline-none text-sm font-medium placeholder-[var(--color-gray-light)]"
+                    style={{ color: "var(--color-charcoal)" }}
+                  />
+                  {nameInput.length > 0 && (
+                    <span className="text-[10px] font-bold tabular-nums shrink-0" style={{ color: "var(--color-gray-light)" }}>
+                      {30 - nameInput.length}
+                    </span>
+                  )}
+                </div>
+
+                {/* CTAs */}
+                <div className="flex flex-col gap-2.5">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                    onClick={saveName}
+                    className="w-full py-4 rounded-2xl text-sm font-bold uppercase tracking-widest shadow-md"
+                    style={{ backgroundColor: "var(--color-charcoal)", color: "var(--color-ivory)" }}
+                  >
+                    Continue →
+                  </motion.button>
+                  <button
+                    onClick={() => {
+                      sessionStorage.setItem("conexion_user_name", "Anonymous");
+                      setMyName("Anonymous");
+                      setShowNamePrompt(false);
+                    }}
+                    className="w-full py-3 text-xs font-semibold text-center transition-colors hover:opacity-70"
+                    style={{ color: "var(--color-gray-light)" }}
+                  >
+                    Stay anonymous
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -551,11 +701,69 @@ function ChatApp() {
                 ) : (
                   <AnimatePresence initial={false}>
                     {msgs.map(m => (
-                      <motion.div key={m.id} initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} className={`max-w-[70%] flex flex-col ${m.from === "system" ? "self-center items-center my-6" : m.from === "me" ? "self-end items-end" : "self-start items-start"}`}>
-                        {m.from !== "system" && <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--color-gray-light)] mb-2 px-2">{m.from === "me" ? "You" : "Stranger"}</span>}
-                        <div className={`px-6 py-4 text-[15px] leading-relaxed shadow-sm ${m.from === "system" ? "bg-[var(--color-beige)] text-[var(--color-gray-brown)] text-[10px] uppercase tracking-widest font-bold rounded-full border border-[var(--color-border)] px-6" : m.from === "me" ? "bg-gradient-to-br from-[var(--color-charcoal)] to-[var(--color-charcoal-80)] text-[var(--color-ivory)] rounded-[24px_24px_6px_24px] shadow-[0_4px_12px_rgba(46,39,36,0.15)]" : "bg-white text-[var(--color-charcoal)] border border-[var(--color-border)] rounded-[24px_24px_24px_6px] shadow-[0_4px_12px_rgba(0,0,0,0.03)]"}`}>
-                          {m.text}
-                        </div>
+                      <motion.div
+                        key={m.id}
+                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className={`group max-w-[80%] sm:max-w-[70%] flex flex-col ${
+                          m.from === "system" ? "self-center items-center my-6"
+                          : m.from === "me" ? "self-end items-end"
+                          : "self-start items-start"
+                        }`}
+                      >
+                        {/* Label */}
+                        {m.from !== "system" && (
+                          <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--color-gray-light)] mb-1.5 px-2">
+                            {m.from === "me" ? (myName || "You") : partnerName}
+                          </span>
+                        )}
+
+                        {/* Bubble + Reply button row */}
+                        {m.from !== "system" ? (
+                          <div className={`flex items-end gap-1.5 ${m.from === "me" ? "flex-row-reverse" : "flex-row"}`}>
+                            {/* Bubble */}
+                            <div className={`flex flex-col overflow-hidden ${
+                              m.from === "me"
+                                ? "bg-gradient-to-br from-[var(--color-charcoal)] to-[var(--color-charcoal-80)] text-[var(--color-ivory)] rounded-[20px_20px_5px_20px] shadow-[0_4px_12px_rgba(46,39,36,0.15)]"
+                                : "bg-white text-[var(--color-charcoal)] border border-[var(--color-border)] rounded-[20px_20px_20px_5px] shadow-[0_4px_12px_rgba(0,0,0,0.03)]"
+                            }`}>
+                              {/* Reply quote */}
+                              {m.replyTo && (
+                                <div className={`px-3 pt-2.5 pb-1.5 text-xs leading-snug border-b ${
+                                  m.from === "me"
+                                    ? "border-white/10 text-[var(--color-ivory)]/60"
+                                    : "border-[var(--color-border)] text-[var(--color-gray-brown)]"
+                                }`}>
+                                  <div className={`flex items-center gap-1 mb-0.5 font-bold text-[9px] uppercase tracking-widest opacity-60`}>
+                                    <div className={`w-0.5 h-3 rounded-full ${
+                                      m.from === "me" ? "bg-[var(--color-ivory)]/50" : "bg-[var(--color-charcoal)]/30"
+                                    }`} />
+                                    {m.replyTo.from === "me" ? (myName || "You") : partnerName}
+                                  </div>
+                                  <p className="line-clamp-2 opacity-70">{m.replyTo.text}</p>
+                                </div>
+                              )}
+                              <p className="px-5 py-3 text-[14px] sm:text-[15px] leading-relaxed">{m.text}</p>
+                            </div>
+
+                            {/* Reply action button */}
+                            <motion.button
+                              title="Reply"
+                              onClick={() => setReplyingTo(m)}
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              whileHover={{ scale: 1.1 }}
+                              className={`opacity-0 group-hover:opacity-100 focus:opacity-100 active:opacity-100 transition-opacity shrink-0 w-7 h-7 rounded-full border border-[var(--color-border)] bg-white shadow-sm flex items-center justify-center text-[var(--color-gray-brown)] hover:text-[var(--color-charcoal)] hover:bg-[var(--color-beige)] mb-1`}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M6 4L2 8l4 4M2 8h8a4 4 0 0 1 4 4v1" />
+                              </svg>
+                            </motion.button>
+                          </div>
+                        ) : (
+                          <div className="bg-[var(--color-beige)] text-[var(--color-gray-brown)] text-[10px] uppercase tracking-widest font-bold rounded-full border border-[var(--color-border)] px-5 py-2">
+                            {m.text}
+                          </div>
+                        )}
                       </motion.div>
                     ))}
                   </AnimatePresence>
@@ -564,8 +772,37 @@ function ChatApp() {
               </div>
 
               {/* Input Area */}
-              <div className="p-4 md:p-6 bg-white/60 border-t border-[var(--color-border)] backdrop-blur-md">
-                <div className="max-w-4xl mx-auto space-y-2">
+              <div className="flex-none pb-[env(safe-area-inset-bottom)] bg-white/60 border-t border-[var(--color-border)] backdrop-blur-md">
+                {/* Replying-to bar */}
+                <AnimatePresence>
+                  {replyingTo && (
+                    <motion.div
+                      ref={replyBarRef}
+                      key="reply-bar"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      className="flex items-center gap-3 px-4 sm:px-6 pt-3 pb-1"
+                    >
+                      <div className="flex-1 flex items-center gap-2.5 px-3 py-2 rounded-xl bg-[var(--color-parchment)] border border-[var(--color-border)] min-w-0">
+                        <div className="w-0.5 h-8 rounded-full bg-[var(--color-charcoal)] shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-[9px] uppercase tracking-widest font-bold text-[var(--color-gray-brown)] mb-0.5">
+                            Replying to {replyingTo.from === "me" ? (myName || "you") : partnerName}
+                          </p>
+                          <p className="text-xs text-[var(--color-charcoal)] truncate">{replyingTo.text}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setReplyingTo(null)}
+                        className="shrink-0 w-7 h-7 rounded-full bg-[var(--color-beige)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-gray-light)] hover:text-[var(--color-charcoal)] transition-colors"
+                      >
+                        <RiCloseCircleLine className="text-sm" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <div className="max-w-4xl mx-auto space-y-2 p-3 sm:p-4 md:p-5">
 
                   {/* Hate-speech preview overlay — only shown when something is typed */}
                   <AnimatePresence>
@@ -639,7 +876,6 @@ function ChatApp() {
                   })()}
                 </div>
               </div>
-              
             </div>
           </div>
         )}
@@ -699,19 +935,19 @@ function ChatApp() {
             </motion.div>
 
             {/* Controls Dock */}
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/10 backdrop-blur-xl p-3 rounded-full border border-white/20 shadow-2xl z-40">
+            <div className="absolute bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-4 bg-white/10 backdrop-blur-xl p-2 sm:p-3 rounded-full border border-white/20 shadow-2xl z-40">
               <ControlButton icon={micOn ? RiMicLine : RiMicOffLine} onClick={() => setMicOn(!micOn)} danger={!micOn} label="Toggle Mic" />
               <ControlButton icon={camOn ? RiCameraLine : RiCameraOffLine} onClick={() => setCamOn(!camOn)} danger={!camOn} label="Toggle Cam" />
               
-              <div className="w-px h-8 bg-white/20 mx-2" />
+              <div className="w-px h-6 sm:h-8 bg-white/20 mx-1 sm:mx-2" />
               
               {status === "idle" || status === "ended" ? (
-                <button onClick={startSearch} className="bg-white text-[var(--color-charcoal)] px-8 py-3 rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-lg">Start</button>
+                <button onClick={startSearch} className="bg-white text-[var(--color-charcoal)] px-5 sm:px-8 py-2 sm:py-3 rounded-full font-bold text-xs sm:text-sm hover:scale-105 transition-transform shadow-lg">Start</button>
               ) : status === "connecting" || status === "queued" ? (
-                <button onClick={stopSearch} className="bg-white/20 text-white px-8 py-3 rounded-full font-bold text-sm hover:bg-white/30 transition-colors">Cancel</button>
+                <button onClick={stopSearch} className="bg-white/20 text-white px-5 sm:px-8 py-2 sm:py-3 rounded-full font-bold text-xs sm:text-sm hover:bg-white/30 transition-colors">Cancel</button>
               ) : (
                 <>
-                  <button onClick={skip} className="bg-white text-[var(--color-charcoal)] px-8 py-3 rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-lg">Skip</button>
+                  <button onClick={skip} className="bg-white text-[var(--color-charcoal)] px-5 sm:px-8 py-2 sm:py-3 rounded-full font-bold text-xs sm:text-sm hover:scale-105 transition-transform shadow-lg">Skip</button>
                   <ControlButton icon={RiCloseCircleLine} onClick={endCall} danger={true} label="End Call" />
                   <div className="relative">
                     <ControlButton icon={RiFlag2Line} onClick={() => setShowReport(r => !r)} label="Report" />
@@ -768,12 +1004,13 @@ function ChatApp() {
         {showTags && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4"
             onClick={(e) => e.target === e.currentTarget && (setShowTags(false), setFilterSearch(""))}
           >
             <motion.div
-              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
-              className="bg-[var(--color-ivory)] w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh]"
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 400, damping: 40 }}
+              className="bg-[var(--color-ivory)] w-full sm:max-w-xl sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92dvh] sm:max-h-[88vh]"
             >
               {/* Modal Header */}
               <div className="px-8 pt-8 pb-6 border-b border-[var(--color-border)] bg-white">
@@ -877,6 +1114,121 @@ function ChatApp() {
                 >
                   Apply
                 </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Ended Popup ── */}
+      <AnimatePresence>
+        {showEndedPopup && (
+          <motion.div
+            key="ended-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] flex items-center justify-center px-4"
+            style={{ backgroundColor: "rgba(30,25,20,0.55)", backdropFilter: "blur(12px)" }}
+          >
+            <motion.div
+              initial={{ scale: 0.88, y: 32, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.88, y: 32, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 28 }}
+              className="relative w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.35)]"
+              style={{ backgroundColor: "var(--color-warm-white)", border: "1px solid var(--color-border)" }}
+            >
+              {/* Decorative top band */}
+              <div className="h-1.5 w-full bg-gradient-to-r from-[var(--color-charcoal)] via-[var(--color-gray-brown)] to-[var(--color-peach)]" />
+
+              <div className="px-8 pt-8 pb-9 flex flex-col items-center text-center gap-5">
+
+                {/* Icon */}
+                <motion.div
+                  initial={{ scale: 0, rotate: -30 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ delay: 0.1, type: "spring", stiffness: 260, damping: 20 }}
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                  style={{ backgroundColor: "var(--color-parchment)", border: "1px solid var(--color-border)" }}
+                >
+                  {endedBy === "them" ? (
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--color-charcoal)" }}>
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  ) : (
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--color-charcoal)" }}>
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M12 8v4l2.5 2.5" />
+                    </svg>
+                  )}
+                </motion.div>
+
+                {/* Copy */}
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold tracking-tight" style={{ fontFamily: "var(--font-serif)", color: "var(--color-charcoal)" }}>
+                    {endedBy === "them" ? "They slipped away" : "Connection closed"}
+                  </h2>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--color-gray-brown)" }}>
+                    {endedBy === "them"
+                      ? `${partnerName} has left the room. Every connection is a small story.`
+                      : "You ended this encounter. Another mind is waiting."}
+                  </p>
+                </div>
+
+                {/* Session duration badge */}
+                {sessionDurationRef.current > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest"
+                    style={{ backgroundColor: "var(--color-beige)", border: "1px solid var(--color-border)", color: "var(--color-gray-brown)" }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="10" /><path d="M12 6v6l3 3" />
+                    </svg>
+                    {fmt(sessionDurationRef.current)} conversation
+                  </motion.div>
+                )}
+
+                {/* Shared interests recap */}
+                {sharedInterests.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="flex flex-wrap justify-center gap-1.5"
+                  >
+                    {sharedInterests.map(i => (
+                      <span key={i} className="px-3 py-1 rounded-full text-[10px] font-semibold" style={{ backgroundColor: "var(--color-parchment)", border: "1px solid var(--color-border)", color: "var(--color-charcoal)" }}>{i}</span>
+                    ))}
+                  </motion.div>
+                )}
+
+                {/* Actions */}
+                <div className="w-full flex flex-col gap-2.5 pt-1">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={startSearch}
+                    className="w-full py-4 rounded-2xl text-sm font-bold uppercase tracking-widest flex items-center justify-center gap-2.5 shadow-lg"
+                    style={{ backgroundColor: "var(--color-charcoal)", color: "var(--color-ivory)" }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                    </svg>
+                    Find Next
+                  </motion.button>
+                  <button
+                    onClick={() => setShowEndedPopup(false)}
+                    className="w-full py-3.5 rounded-2xl text-sm font-semibold transition-colors"
+                    style={{ color: "var(--color-gray-brown)", border: "1px solid var(--color-border)" }}
+                  >
+                    Stay here
+                  </button>
+                </div>
+
               </div>
             </motion.div>
           </motion.div>
