@@ -1285,7 +1285,12 @@ function ChatLoadingFallback() {
   return (
     <div className="h-screen w-full flex items-center justify-center bg-[var(--color-ivory)]">
       <div className="text-center">
-        <h1 className="font-serif text-3xl text-[var(--color-charcoal)] mb-4 italic">Conexion</h1>
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <h1 className="font-serif text-3xl text-[var(--color-charcoal)] italic m-0">Conexion</h1>
+          <span className="text-[10px] font-sans font-bold uppercase tracking-widest bg-[var(--color-olive)]/20 text-[var(--color-olive)] px-2 py-0.5 rounded-full mt-1">
+            Beta
+          </span>
+        </div>
         <div className="w-12 h-px bg-[var(--color-border)] mx-auto mb-4" />
         <div className="text-[9px] uppercase tracking-[0.3em] font-bold text-[var(--color-gray-light)] animate-pulse">Initializing</div>
       </div>

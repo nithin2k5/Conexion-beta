@@ -229,9 +229,13 @@ export default function Home() {
         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
         className="fixed top-0 w-full px-8 md:px-16 py-8 flex justify-between items-center z-50 bg-gradient-to-b from-[var(--color-ivory)] to-transparent"
       >
-        <Link href="/" className="text-2xl font-bold tracking-tight hover:opacity-70 transition-opacity"
-          style={{ fontFamily: "var(--font-serif)", color: "var(--color-charcoal)" }}>
-          Cone<span style={{ color: "var(--color-peach)", fontStyle: "italic" }}>x</span>ion
+        <Link href="/" className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ textDecoration: 'none' }}>
+          <span className="text-2xl font-bold tracking-tight" style={{ fontFamily: "var(--font-serif)", color: "var(--color-charcoal)" }}>
+            Cone<span style={{ color: "var(--color-peach)", fontStyle: "italic" }}>x</span>ion
+          </span>
+          <span className="text-[10px] font-sans font-bold uppercase tracking-widest bg-[var(--color-olive)]/20 text-[var(--color-olive)] px-2 py-0.5 rounded-full mt-1">
+            Beta
+          </span>
         </Link>
         <div className="flex items-center gap-8">
           {onlineCount !== null && (
