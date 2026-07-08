@@ -356,21 +356,6 @@ wss.on("connection", (ws) => {
         }
         break;
 
-      case "global_message":
-        if (typeof msg.text !== "string") break;
-        const safeGlobalText = msg.text.trim();
-        if (!safeGlobalText || safeGlobalText.length > 2000) break;
-        const globalHateSpeechRegex = /\b(nigger|faggot|spic|chink|porn|sex|tits|dick|pussy|cock|boobs|cunt|slut|whore)\b/i;
-        if (globalHateSpeechRegex.test(safeGlobalText)) break;
-        // Broadcast to all clients
-        broadcast({
-          type: "global_message",
-          text: safeGlobalText,
-          senderName: client.name || "Anonymous",
-          ts: Date.now()
-        });
-        break;
-
       case "rtc_signal":
         if (!client.partnerId || !msg.payload) break;
         if (JSON.stringify(msg.payload).length > 10000) break; // sanity check payload size

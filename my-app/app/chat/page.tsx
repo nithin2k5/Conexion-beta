@@ -115,8 +115,8 @@ const getApiBase = () => {
 };
 
 type Status = "idle" | "connecting" | "queued" | "chatting" | "ended";
-type ChatMode = "text" | "video" | "global";
-interface Msg { id: string; from: "me" | "them" | "system"; text: string; ts?: number; replyTo?: { text: string; from: "me" | "them" }; senderName?: string; }
+type ChatMode = "text" | "video";
+interface Msg { id: string; from: "me" | "them" | "system"; text: string; ts?: number; replyTo?: { text: string; from: "me" | "them" }; }
 
 function fmt(s: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -318,11 +318,6 @@ function ChatApp() {
           setMsgs([{ id: crypto.randomUUID(), from: "system", text: (msg.sharedInterests ?? []).length > 0 ? `Matched! Shared interests: ${(msg.sharedInterests ?? []).join(", ")}` : "A new connection has been established." }]);
           if (mode === "video") setupWebRTC(msg.role);
           break;
-        case "global_message": {
-          const isMe = msg.senderName === (myName || "Anonymous");
-          setMsgs(m => [...m, { id: crypto.randomUUID(), from: isMe ? "me" : "them", text: msg.text, senderName: msg.senderName }]);
-          break;
-        }
         case "message": {
           const incomingReplyTo = msg.replyTo?.text
             ? { text: msg.replyTo.text, from: "them" as const }
@@ -374,13 +369,7 @@ function ChatApp() {
   const reportUser = (reason: string) => { wsSend({ type: "report", reason }); setMsgs(m => [...m, sys("User reported.")]); setShowReport(false); setTimeout(() => skip(), 800); };
 
   const send = () => {
-    if (!draft.trim()) return;
-    if (mode === "global") {
-      wsSend({ type: "global_message", text: draft });
-      setDraft("");
-      return;
-    }
-    if (status !== "chatting") return;
+    if (!draft.trim() || status !== "chatting") return;
     const { flagged } = detectHateSpeech(draft);
     if (flagged) return;
     const trimmed = draft.trim();
@@ -630,8 +619,8 @@ function ChatApp() {
               layoutId="nav-mode-pill"
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
               style={{
-                width: "calc(33.33% - 2px)",
-                left: mode === "text" ? 3 : mode === "video" ? "calc(33.33% + 1.5px)" : "calc(66.66%)",
+                width: "calc(50% - 3px)",
+                left: mode === "text" ? 3 : "calc(50%)",
               }}
             />
             <button
@@ -653,16 +642,6 @@ function ChatApp() {
             >
               <RiVideoChatLine className="text-sm" />
               <span>Video</span>
-            </button>
-            <button
-              onClick={() => switchMode("global")}
-              disabled={status !== "idle" && status !== "ended"}
-              className={`relative z-10 flex items-center gap-1.5 px-4 py-2 rounded-[10px] text-[11px] font-bold uppercase tracking-wider transition-colors duration-200 ${
-                (status !== "idle" && status !== "ended") ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-              } ${mode === "global" ? "text-[var(--color-ivory)]" : "text-[var(--color-gray-brown)] hover:text-[var(--color-charcoal)]"}`}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-              <span>Global</span>
             </button>
           </div>
         </div>
@@ -715,22 +694,22 @@ function ChatApp() {
       {/* Main Workspace */}
       <main className="flex-1 flex overflow-hidden relative">
         
-        {/* TEXT MODE / GLOBAL MODE - Immersive View */}
-        {(mode === "text" || mode === "global") && (
+        {/* TEXT MODE - Immersive View */}
+        {mode === "text" && (
           <div className="flex w-full h-full max-w-5xl mx-auto p-4 md:p-8 relative">
             <div className="w-full h-full flex flex-col bg-white/40 backdrop-blur-2xl border border-[var(--color-border)] rounded-[2rem] shadow-[0_8px_32px_rgba(0,0,0,0.05)] overflow-hidden relative">
               
               {/* Text Room Header */}
               <div className="h-20 flex items-center justify-between px-8 border-b border-[var(--color-border)] bg-white/50">
                 <div className="flex flex-col">
-                  <h2 className="font-serif text-2xl text-[var(--color-charcoal)]">{mode === "global" ? "Global Chat" : "Text Studio"}</h2>
+                  <h2 className="font-serif text-2xl text-[var(--color-charcoal)]">Text Studio</h2>
                   <div className="text-[10px] uppercase tracking-widest font-bold text-[var(--color-gray-brown)]">
-                    {mode === "global" ? "Public square" : status === "idle" ? "Ready to connect" : status === "connecting" || status === "queued" ? "Seeking resonance..." : status === "chatting" ? `Encrypted tunnel active • ${fmt(elapsed)}` : "Connection terminated"}
+                    {status === "idle" ? "Ready to connect" : status === "connecting" || status === "queued" ? "Seeking resonance..." : status === "chatting" ? `Encrypted tunnel active • ${fmt(elapsed)}` : "Connection terminated"}
                   </div>
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  {mode === "global" ? null : status === "idle" || status === "ended" ? (
+                  {status === "idle" || status === "ended" ? (
                     <button onClick={startSearch} className="btn-primary py-2 px-6 shadow-sm">Begin</button>
                   ) : status === "connecting" || status === "queued" ? (
                     <button onClick={stopSearch} className="btn-secondary py-2 px-6">Abort</button>
@@ -745,14 +724,14 @@ function ChatApp() {
 
               {/* Chat Stream */}
               <div className="flex-1 overflow-y-auto p-8 flex flex-col gap-6 relative">
-                {(mode === "text" && (status === "idle" || status === "ended")) ? (
+                {status === "idle" || status === "ended" ? (
                   <div className="m-auto text-center opacity-50 flex flex-col items-center">
                     <div className="w-24 h-24 rounded-full border border-dashed border-[var(--color-charcoal)] flex items-center justify-center mb-6">
                       <RiMessage3Line className="text-4xl text-[var(--color-charcoal)]" />
                     </div>
                     <p className="font-serif text-3xl italic">Silence fills the room.</p>
                   </div>
-                ) : (mode === "text" && (status === "connecting" || status === "queued")) ? (
+                ) : status === "connecting" || status === "queued" ? (
                   <div className="m-auto flex flex-col items-center">
                     <div className="w-24 h-24 rounded-full border border-[var(--color-border)] flex items-center justify-center mb-8 relative">
                       <motion.div animate={{ scale: [1, 2], opacity: [0.5, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }} className="absolute inset-0 rounded-full border border-[var(--color-charcoal)]" />
@@ -777,7 +756,7 @@ function ChatApp() {
                         {/* Label */}
                         {m.from !== "system" && (
                           <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--color-gray-light)] mb-1.5 px-2">
-                            {mode === "global" ? m.senderName : (m.from === "me" ? (myName || "You") : partnerName)}
+                            {m.from === "me" ? (myName || "You") : partnerName}
                           </span>
                         )}
 
@@ -904,9 +883,9 @@ function ChatApp() {
                           : "border-[var(--color-border)] focus-within:ring-2 ring-[var(--color-charcoal)]/10"
                       }`}>
                         <input
-                          disabled={mode !== "global" && status !== "chatting"}
+                          disabled={status !== "chatting"}
                           className="flex-1 bg-transparent border-none outline-none py-3 px-2 text-[15px] placeholder-[var(--color-gray-light)] disabled:opacity-50"
-                          placeholder={mode === "global" ? "Message the world..." : status === "chatting" ? "Write your message here..." : "The room is closed."}
+                          placeholder={status === "chatting" ? "Write your message here..." : "The room is closed."}
                           value={draft}
                           onChange={e => setDraft(e.target.value)}
                           onKeyDown={e => {
@@ -917,8 +896,8 @@ function ChatApp() {
                           }}
                         />
                         <motion.button
-                          whileTap={!blocked && draft.trim() && (mode === "global" || status === "chatting") ? { scale: 0.9 } : {}}
-                          disabled={!draft.trim() || (mode !== "global" && status !== "chatting") || blocked}
+                          whileTap={!blocked && draft.trim() && status === "chatting" ? { scale: 0.9 } : {}}
+                          disabled={!draft.trim() || status !== "chatting" || blocked}
                           onClick={() => { if (!blocked) send(); }}
                           title={blocked ? "Remove hateful language to send" : "Send"}
                           className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all shadow-md ${

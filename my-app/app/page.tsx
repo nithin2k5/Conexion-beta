@@ -293,9 +293,9 @@ export default function Home() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full max-w-5xl px-4"
+            className="flex flex-col sm:flex-row gap-6 w-full max-w-xl"
           >
-            <Link href="/chat?mode=text" className="group">
+            <Link href="/chat?mode=text" className="flex-1 group">
               <div className="warm-panel h-full flex items-center justify-between p-6 transition-all duration-500 hover:bg-[var(--color-beige)] hover:shadow-xl hover:-translate-y-1">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-[var(--color-ivory)] flex items-center justify-center text-[var(--color-charcoal)] shadow-sm border border-[var(--color-border)] group-hover:scale-110 transition-transform duration-500">
@@ -306,11 +306,11 @@ export default function Home() {
                     <p className="text-xs text-[var(--color-gray-light)]">Distraction-free typing</p>
                   </div>
                 </div>
-                <RiArrowRightLine className="text-[var(--color-gray-light)] group-hover:text-[var(--color-charcoal)] group-hover:translate-x-2 transition-all duration-500 shrink-0 ml-2" />
+                <RiArrowRightLine className="text-[var(--color-gray-light)] group-hover:text-[var(--color-charcoal)] group-hover:translate-x-2 transition-all duration-500" />
               </div>
             </Link>
 
-            <Link href="/chat?mode=video" className="group">
+            <Link href="/chat?mode=video" className="flex-1 group">
               <div className="warm-panel h-full flex items-center justify-between p-6 transition-all duration-500 hover:bg-[var(--color-charcoal)] hover:shadow-xl hover:-translate-y-1">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-[var(--color-charcoal-80)] flex items-center justify-center text-[var(--color-ivory)] group-hover:bg-[var(--color-ivory)] group-hover:text-[var(--color-charcoal)] transition-colors duration-500">
@@ -321,22 +321,7 @@ export default function Home() {
                     <p className="text-xs text-[var(--color-gray-light)] group-hover:text-white/60 transition-colors">Face-to-face encounters</p>
                   </div>
                 </div>
-                <RiArrowRightLine className="text-[var(--color-gray-light)] group-hover:text-[var(--color-ivory)] group-hover:translate-x-2 transition-all duration-500 shrink-0 ml-2" />
-              </div>
-            </Link>
-
-            <Link href="/chat?mode=global" className="group">
-              <div className="warm-panel h-full flex items-center justify-between p-6 transition-all duration-500 hover:bg-[#6B8A6A] hover:shadow-xl hover:-translate-y-1">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-white/50 flex items-center justify-center text-[var(--color-charcoal)] group-hover:bg-white group-hover:text-[#6B8A6A] transition-colors duration-500">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                  </div>
-                  <div className="text-left group-hover:text-white transition-colors duration-500">
-                    <h3 className="font-semibold text-[var(--color-charcoal)] group-hover:text-white transition-colors">Global Chat</h3>
-                    <p className="text-xs text-[var(--color-gray-light)] group-hover:text-white/80 transition-colors">The public square</p>
-                  </div>
-                </div>
-                <RiArrowRightLine className="text-[var(--color-gray-light)] group-hover:text-white group-hover:translate-x-2 transition-all duration-500 shrink-0 ml-2" />
+                <RiArrowRightLine className="text-[var(--color-gray-light)] group-hover:text-[var(--color-ivory)] group-hover:translate-x-2 transition-all duration-500" />
               </div>
             </Link>
           </motion.div>
