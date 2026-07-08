@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://va.vercel-scripts.com",
-              "connect-src 'self' wss://conexion-production.up.railway.app https://conexion-production.up.railway.app wss://*.onrender.com https://*.onrender.com https://vitals.vercel-insights.com",
+              "connect-src 'self' ws://localhost:3001 wss://localhost:3001 http://localhost:3001 https://localhost:3001 wss://conexion-production.up.railway.app https://conexion-production.up.railway.app wss://*.onrender.com https://*.onrender.com https://vitals.vercel-insights.com",
               "media-src 'self' blob:",
               "img-src 'self' data: blob: https://grainy-gradients.vercel.app",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",

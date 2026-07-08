@@ -88,8 +88,31 @@ function DraftPreview({ text, flaggedWords }: { text: string; flaggedWords: stri
     </span>
   );
 }
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001/ws";
-const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api/stats', '') || "http://localhost:3001";
+const getWsUrl = () => {
+  let url = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001/ws";
+  if (typeof window !== "undefined") {
+    if (!process.env.NEXT_PUBLIC_WS_URL && window.location.hostname !== "localhost") {
+      url = url.replace("localhost", window.location.hostname);
+    }
+    if (window.location.protocol === "https:" && url.startsWith("ws://")) {
+      url = url.replace("ws://", "wss://");
+    }
+  }
+  return url;
+};
+
+const getApiBase = () => {
+  let url = process.env.NEXT_PUBLIC_API_URL?.replace('/api/stats', '') || "http://localhost:3001";
+  if (typeof window !== "undefined") {
+    if (!process.env.NEXT_PUBLIC_API_URL && window.location.hostname !== "localhost") {
+      url = url.replace("localhost", window.location.hostname);
+    }
+    if (window.location.protocol === "https:" && url.startsWith("http://")) {
+      url = url.replace("http://", "https://");
+    }
+  }
+  return url;
+};
 
 type Status = "idle" | "connecting" | "queued" | "chatting" | "ended";
 type ChatMode = "text" | "video";
@@ -243,7 +266,7 @@ function ChatApp() {
   }, [camOn, micOn, localStream]);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/turn-credentials`).then(res => res.json()).then(data => { if (data.iceServers?.length) setIceServers(data.iceServers); }).catch(() => {});
+    fetch(`${getApiBase()}/api/turn-credentials`).then(res => res.json()).then(data => { if (data.iceServers?.length) setIceServers(data.iceServers); }).catch(() => {});
   }, []);
 
   const wsSend = (payload: object) => { if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify(payload)); };
@@ -273,7 +296,16 @@ function ChatApp() {
 
   const connectWS = useCallback(() => {
     if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) return wsRef.current;
-    setWsError(false); const ws = new WebSocket(WS_URL); wsRef.current = ws;
+    setWsError(false);
+    let ws;
+    try {
+      ws = new WebSocket(getWsUrl());
+    } catch (e) {
+      console.warn("WebSocket connection failed (SecurityError likely due to mixed content):", e);
+      setWsError(true);
+      return;
+    }
+    wsRef.current = ws;
     ws.onopen = () => { setWsError(false); setIsReconnecting(false); reconnectAttemptRef.current = 0; pingRef.current = setInterval(() => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "ping" })); }, 25000); };
     ws.onmessage = async (ev) => {
       let msg: any; try { msg = JSON.parse(ev.data); } catch { return; }
@@ -322,6 +354,7 @@ function ChatApp() {
 
   const startSearch = () => {
     let ws = wsRef.current; if (!ws || ws.readyState > WebSocket.OPEN) ws = connectWS();
+    if (!ws) return; // Prevent crash if connectWS fails and returns undefined
     const queuePayload = JSON.stringify({ type: "queue", interests: tags, name: myName || "Anonymous" });
     if (ws.readyState === WebSocket.OPEN) ws.send(queuePayload);
     else ws.addEventListener("open", () => ws?.send(queuePayload), { once: true });
