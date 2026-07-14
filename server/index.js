@@ -181,6 +181,19 @@ function broadcast(payload) {
   }
 }
 
+function broadcastGlobalUsers() {
+  const users = [];
+  for (const [id, c] of clients.entries()) {
+    if (c.inGlobalChat) {
+      users.push({ id, name: c.name });
+    }
+  }
+  const payload = { type: "global_users", users };
+  for (const c of clients.values()) {
+    if (c.inGlobalChat) send(c.ws, payload);
+  }
+}
+
 function removeFromQueue(id) {
   const idx = queue.indexOf(id);
   if (idx !== -1) queue.splice(idx, 1);
@@ -422,10 +435,12 @@ wss.on("connection", (ws) => {
           client.name = msg.name.trim().substring(0, 30) || "Anonymous";
         }
         send(ws, { type: "global_history", messages: globalChatHistory });
+        broadcastGlobalUsers();
         break;
 
       case "leave_global":
         client.inGlobalChat = false;
+        broadcastGlobalUsers();
         break;
 
       case "global_message":
@@ -457,9 +472,11 @@ wss.on("connection", (ws) => {
   });
 
   ws.on("close", () => {
+    const wasInGlobal = client.inGlobalChat;
     detachPartner(id);
     removeFromQueue(id);
     clients.delete(id);
+    if (wasInGlobal) broadcastGlobalUsers();
 
     // Fix 3: Decrement per-IP connection count on disconnect
     const ip = ws._remoteIP;

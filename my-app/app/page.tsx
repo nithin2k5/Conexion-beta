@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
-import { RiMessage3Line, RiVideoChatLine, RiLockPasswordLine, RiUserSmileLine, RiFlashlightLine, RiArrowRightLine } from "react-icons/ri";
+import { RiMessage3Line, RiVideoChatLine, RiLockPasswordLine, RiUserSmileLine, RiFlashlightLine, RiArrowRightLine, RiCloseLine, RiSendPlane2Line } from "react-icons/ri";
 import ParticleBackground from "./components/ParticleBackground";
 import Footer from "./components/Footer";
 
@@ -427,12 +427,12 @@ export default function Home() {
             transition={{ type: "spring", stiffness: 200, damping: 20, delay: 1 }}
             className="fixed bottom-6 right-6 z-[100]"
           >
-            <Link href="/chat?mode=text" className="group flex flex-col items-end relative">
+            <Link href="/world" className="group flex flex-col items-end relative">
               {/* Tooltip / Note */}
               <div className="absolute bottom-full right-0 mb-4 bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-xl border border-[var(--color-border)] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap pointer-events-none transform origin-bottom-right group-hover:-translate-y-2">
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold uppercase tracking-widest text-[var(--color-charcoal)] mb-1">Click here for live chat</span>
-                  <span className="text-[10px] text-[var(--color-gray-brown)]">Connect instantly with strangers</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-[var(--color-charcoal)] mb-1">Enter World Chat</span>
+                  <span className="text-[10px] text-[var(--color-gray-brown)]">Talk with everyone online</span>
                 </div>
                 {/* Arrow */}
                 <div className="absolute -bottom-1.5 right-6 w-3 h-3 bg-white/90 border-b border-r border-[var(--color-border)] rotate-45" />
