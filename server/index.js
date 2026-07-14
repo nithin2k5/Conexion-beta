@@ -44,8 +44,6 @@ const ORIGIN = process.env.ORIGIN  || "http://localhost:3000";
 const MAX_PAYLOAD = 65536; // 64KB max websocket payload
 const RATE_LIMIT_MSGS = 20; // max messages per second
 const MAX_TOTAL_CLIENTS = 500; // max concurrent clients
-const REPORTS_BEFORE_BAN = 3;    // reports needed to trigger a temp ban
-const BAN_DURATION_MS = 15 * 60 * 1000; // 15-minute ban
 
 
 // ── Express app ───────────────────────────────────────────────────────────────
@@ -75,7 +73,6 @@ app.get("/api/stats", (_req, res) => {
     online:         clients.size,
     queued:         queue.length,
     activeSessions,
-    bannedIPs:      bannedIPs.size,
     timestamp:      new Date().toISOString(),
   });
 });
@@ -137,13 +134,6 @@ server.on("upgrade", (req, socket, head) => {
 
     // Fix 3: Enforce per-IP connection limit
     const ip = req.headers["x-forwarded-for"]?.split(",")[0].trim() || req.socket.remoteAddress || "unknown";
-    // Reject banned IPs
-    if (isBanned(ip)) {
-      socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
-      socket.destroy();
-      console.warn(`[ban] Rejected connection from banned IP ${ip}`);
-      return;
-    }
     const currentConns = ipConnections.get(ip) || 0;
     if (currentConns >= MAX_CONNS_PER_IP) {
       socket.write('HTTP/1.1 429 Too Many Requests\r\n\r\n');
@@ -174,12 +164,6 @@ const ipConnections = new Map(); // ip → connection count
 /** Ordered list of client IDs waiting to be matched */
 const queue = [];
 
-// ── Ban system ────────────────────────────────────────────────────────────────
-/** ip → { count, lastReportedAt } — tracks reports received per IP */
-const reportCounts = new Map();
-/** ip → ban expiry timestamp */
-const bannedIPs = new Map();
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function send(ws, payload) {
@@ -197,55 +181,6 @@ function broadcast(payload) {
 function removeFromQueue(id) {
   const idx = queue.indexOf(id);
   if (idx !== -1) queue.splice(idx, 1);
-}
-
-/**
- * Check whether an IP is currently banned.
- * Cleans up expired bans lazily.
- */
-function isBanned(ip) {
-  const expiry = bannedIPs.get(ip);
-  if (!expiry) return false;
-  if (Date.now() >= expiry) {
-    bannedIPs.delete(ip);
-    return false;
-  }
-  return true;
-}
-
-/**
- * Record a report against an IP. If the threshold is reached, ban the IP
- * and disconnect + notify all their active sockets.
- * Returns true if the IP was just banned.
- */
-function recordReport(ip) {
-  const entry = reportCounts.get(ip) || { count: 0, lastReportedAt: 0 };
-  entry.count++;
-  entry.lastReportedAt = Date.now();
-  reportCounts.set(ip, entry);
-
-  if (entry.count >= REPORTS_BEFORE_BAN) {
-    const expiresAt = Date.now() + BAN_DURATION_MS;
-    bannedIPs.set(ip, expiresAt);
-    reportCounts.delete(ip); // reset count after banning
-    console.warn(`[ban] IP ${ip} banned until ${new Date(expiresAt).toISOString()} (${entry.count} reports)`);
-
-    // Kick all sockets from this IP
-    for (const [clientId, clientData] of clients.entries()) {
-      if (clientData.ws._remoteIP === ip) {
-        send(clientData.ws, {
-          type: "banned",
-          expiresAt,
-          reason: "You have been temporarily banned due to multiple reports.",
-        });
-        detachPartner(clientId);
-        removeFromQueue(clientId);
-        clientData.ws.close(4403, "Temporarily banned");
-      }
-    }
-    return true;
-  }
-  return false;
 }
 
 /**
@@ -445,21 +380,11 @@ wss.on("connection", (ws) => {
 
       case "report": {
         const reason = typeof msg.reason === "string" ? msg.reason.substring(0, 200) : "Unknown";
-        const reportedPartnerId = client.partnerId;
-        const reportedPartner = reportedPartnerId ? clients.get(reportedPartnerId) : null;
-        const reportedIP = reportedPartner?.ws._remoteIP;
-
         console.log(
           `[report] from=${id.slice(0, 6)} session=${client.sessionId || "none"} ` +
-          `partner=${reportedPartnerId ? reportedPartnerId.slice(0, 6) : "none"} ` +
+          `partner=${client.partnerId ? client.partnerId.slice(0, 6) : "none"} ` +
           `reason="${reason}" ts=${new Date().toISOString()}`
         );
-
-        // Record the report against the partner's IP (if we have one)
-        if (reportedIP) {
-          recordReport(reportedIP);
-        }
-
         // Auto-skip after reporting
         detachPartner(id);
         removeFromQueue(id);

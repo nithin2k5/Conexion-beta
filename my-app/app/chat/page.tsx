@@ -198,9 +198,6 @@ function ChatApp() {
   const [showReport, setShowReport] = useState(false);
   const [showVideoChat, setShowVideoChat] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
-  const [isBanned, setIsBanned] = useState(false);
-  const [banExpiresAt, setBanExpiresAt] = useState<number | null>(null);
-  const [banCountdown, setBanCountdown] = useState("");
   const [iceServers, setIceServers] = useState<RTCIceServer[]>([{ urls: "stun:stun.l.google.com:19302" }]);
   const [camError, setCamError] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<Msg | null>(null);
@@ -227,26 +224,6 @@ function ChatApp() {
   const isLocalNsfw = useNsfwVideoAnalysis(localVideoRef, classifyElement, { enabled: mode === "video" && camOn && nsfwReady });
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, mode]);
-
-  // Ban countdown timer
-  useEffect(() => {
-    if (!isBanned || !banExpiresAt) return;
-    const tick = () => {
-      const remaining = Math.max(0, banExpiresAt - Date.now());
-      if (remaining <= 0) {
-        setIsBanned(false);
-        setBanExpiresAt(null);
-        setBanCountdown("");
-        return;
-      }
-      const mins = Math.floor(remaining / 60000);
-      const secs = Math.floor((remaining % 60000) / 1000);
-      setBanCountdown(`${mins}:${String(secs).padStart(2, "0")}`);
-    };
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [isBanned, banExpiresAt]);
 
   useEffect(() => {
     if (status === "chatting") timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
@@ -359,12 +336,6 @@ function ChatApp() {
         case "partner_left":
           setStatus("ended"); setEndedBy("them"); if (pcRef.current) pcRef.current.close(); if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
           setMsgs(m => [...m, { id: crypto.randomUUID(), from: "system", text: "Connection severed by the other party." }]);
-          break;
-        case "banned":
-          setIsBanned(true);
-          setBanExpiresAt(msg.expiresAt);
-          setStatus("idle");
-          intentionalCloseRef.current = true;
           break;
       }
     };
@@ -586,67 +557,6 @@ function ChatApp() {
                     Stay anonymous
                   </button>
                 </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Ban Screen */}
-      <AnimatePresence>
-        {isBanned && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[300] flex items-center justify-center px-4"
-            style={{ backgroundColor: "rgba(30, 25, 20, 0.85)", backdropFilter: "blur(12px)" }}
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="w-full max-w-sm rounded-[2rem] overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.4)]"
-              style={{ backgroundColor: "var(--color-warm-white)", border: "1px solid var(--color-border)" }}
-            >
-              <div className="h-1.5 w-full bg-gradient-to-r from-[#D4916A] via-[#c0392b] to-[#D4916A]" />
-              <div className="px-8 pt-8 pb-9 flex flex-col items-center text-center gap-5">
-                <div
-                  className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                  style={{ backgroundColor: "rgba(212, 145, 106, 0.1)", border: "1px solid rgba(212, 145, 106, 0.2)" }}
-                >
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D4916A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M12 8v4" />
-                    <circle cx="12" cy="16" r="0.5" fill="#D4916A" />
-                  </svg>
-                </div>
-                <div className="space-y-2">
-                  <h2 className="text-2xl font-bold tracking-tight" style={{ fontFamily: "var(--font-serif)", color: "var(--color-charcoal)" }}>
-                    Temporarily Suspended
-                  </h2>
-                  <p className="text-sm leading-relaxed" style={{ color: "var(--color-gray-brown)" }}>
-                    Your access has been paused due to multiple reports from other users. Please reflect on our community guidelines.
-                  </p>
-                </div>
-                {banCountdown && (
-                  <div
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-widest tabular-nums"
-                    style={{ backgroundColor: "var(--color-parchment)", border: "1px solid var(--color-border)", color: "var(--color-charcoal)" }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <circle cx="12" cy="12" r="10" /><path d="M12 6v6l3 3" />
-                    </svg>
-                    {banCountdown}
-                  </div>
-                )}
-                <Link
-                  href="/terms"
-                  className="text-xs font-semibold transition-colors hover:opacity-70"
-                  style={{ color: "var(--color-gray-light)" }}
-                >
-                  Review Community Guidelines →
-                </Link>
               </div>
             </motion.div>
           </motion.div>
