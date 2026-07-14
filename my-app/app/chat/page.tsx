@@ -395,7 +395,7 @@ function ChatApp() {
   const sys = (text: string): Msg => ({ id: crypto.randomUUID(), from: "system", text });
 
   const startSearch = () => {
-    let ws = wsRef.current; if (!ws || ws.readyState > WebSocket.OPEN) ws = connectWS();
+    let ws: WebSocket | null | undefined = wsRef.current; if (!ws || ws.readyState > WebSocket.OPEN) ws = connectWS();
     if (!ws) return; // Prevent crash if connectWS fails and returns undefined
     const queuePayload = JSON.stringify({ type: "queue", interests: tags, name: myName || "Anonymous" });
     if (ws.readyState === WebSocket.OPEN) ws.send(queuePayload);

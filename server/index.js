@@ -154,7 +154,7 @@ server.on("upgrade", (req, socket, head) => {
 
 // ── In-memory state ───────────────────────────────────────────────────────────
 
-/** @type {Map<string, { ws: WebSocket, name: string, interests: string[], partnerId: string|null, sessionId: string|null, msgCount: number, windowStart: number, previousPartners: Set<string> }>} */
+/** @type {Map<string, { ws: WebSocket, name: string, interests: string[], partnerId: string|null, sessionId: string|null, msgCount: number, windowStart: number, previousPartners: Set<string>, inGlobalChat: boolean }>} */
 const clients = new Map();
 
 // Fix 3: Track active WebSocket connections per IP to prevent flood/DoS
@@ -163,6 +163,9 @@ const ipConnections = new Map(); // ip → connection count
 
 /** Ordered list of client IDs waiting to be matched */
 const queue = [];
+
+/** Global chat history (last 50 messages) */
+const globalChatHistory = [];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -292,7 +295,7 @@ function detachPartner(clientId) {
 
 wss.on("connection", (ws) => {
   const id = randomUUID();
-  clients.set(id, { ws, name: "Anonymous", interests: [], partnerId: null, sessionId: null, msgCount: 0, windowStart: Date.now(), previousPartners: new Set() });
+  clients.set(id, { ws, name: "Anonymous", interests: [], partnerId: null, sessionId: null, msgCount: 0, windowStart: Date.now(), previousPartners: new Set(), inGlobalChat: false });
 
   broadcast({ type: "online_count", count: clients.size });
   console.log(`[+] ${id.slice(0, 6)} connected  | total: ${clients.size}`);
@@ -411,6 +414,44 @@ wss.on("connection", (ws) => {
       case "end":
         detachPartner(id);
         removeFromQueue(id);
+        break;
+
+      case "join_global":
+        client.inGlobalChat = true;
+        if (msg.name && typeof msg.name === "string") {
+          client.name = msg.name.trim().substring(0, 30) || "Anonymous";
+        }
+        send(ws, { type: "global_history", messages: globalChatHistory });
+        break;
+
+      case "leave_global":
+        client.inGlobalChat = false;
+        break;
+
+      case "global_message":
+        if (!client.inGlobalChat || typeof msg.text !== "string") break;
+        const safeGlobalText = msg.text.trim();
+        if (!safeGlobalText || safeGlobalText.length > 2000) break;
+        
+        const globalHateSpeechRegex = /\b(nigger|faggot|spic|chink|porn|sex|tits|dick|pussy|cock|boobs|cunt|slut|whore)\b/i;
+        if (globalHateSpeechRegex.test(safeGlobalText)) break;
+
+        const globalMsg = {
+          id: randomUUID(),
+          name: client.name,
+          text: safeGlobalText,
+          ts: Date.now()
+        };
+
+        globalChatHistory.push(globalMsg);
+        if (globalChatHistory.length > 50) globalChatHistory.shift();
+
+        const globalPayload = { type: "global_message", message: globalMsg };
+        for (const [clientId, c] of clients.entries()) {
+          if (c.inGlobalChat) {
+            send(c.ws, globalPayload);
+          }
+        }
         break;
     }
   });
