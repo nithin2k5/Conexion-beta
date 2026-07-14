@@ -702,7 +702,9 @@ function ChatApp() {
               {/* Text Room Header */}
               <div className="h-20 flex items-center justify-between px-8 border-b border-[var(--color-border)] bg-white/50">
                 <div className="flex flex-col">
-                  <h2 className="font-serif text-2xl text-[var(--color-charcoal)]">Text Studio</h2>
+                  <h2 className="font-serif text-2xl text-[var(--color-charcoal)]">
+                    {status === "chatting" ? partnerName : "Text Studio"}
+                  </h2>
                   <div className="text-[10px] uppercase tracking-widest font-bold text-[var(--color-gray-brown)]">
                     {status === "idle" ? "Ready to connect" : status === "connecting" || status === "queued" ? "Seeking resonance..." : status === "chatting" ? `Encrypted tunnel active • ${fmt(elapsed)}` : "Connection terminated"}
                   </div>
@@ -949,6 +951,21 @@ function ChatApp() {
               </AnimatePresence>
             </div>
 
+            {/* Partner Name Badge */}
+            <AnimatePresence>
+              {status === "chatting" && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute top-6 left-6 z-20 flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 shadow-lg"
+                >
+                  <span className="w-2 h-2 rounded-full bg-[#6B8A6A] animate-pulse" />
+                  <span className="text-sm font-bold text-white tracking-wide">{partnerName}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* NSFW Shield for Remote */}
             <AnimatePresence>
               {status === "chatting" && isRemoteNsfw && (
@@ -1021,8 +1038,15 @@ function ChatApp() {
                   </div>
                   <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
                      {msgs.map(m => (
-                      <div key={m.id} className={`max-w-[85%] px-4 py-2 text-sm rounded-2xl ${m.from === "system" ? "self-center text-[9px] uppercase tracking-widest text-[var(--color-gray-light)]" : m.from === "me" ? "self-end bg-[var(--color-charcoal)] text-[var(--color-ivory)] rounded-tr-sm" : "self-start bg-[var(--color-parchment)] text-[var(--color-charcoal)] border border-[var(--color-border)] rounded-tl-sm"}`}>
-                        {m.text}
+                      <div key={m.id} className={`max-w-[85%] flex flex-col ${m.from === "system" ? "self-center" : m.from === "me" ? "self-end items-end" : "self-start items-start"}`}>
+                        {m.from !== "system" && (
+                          <span className="text-[9px] uppercase tracking-widest font-bold text-[var(--color-gray-light)] mb-1 px-1">
+                            {m.from === "me" ? (myName || "You") : partnerName}
+                          </span>
+                        )}
+                        <div className={`px-4 py-2 text-sm rounded-2xl ${m.from === "system" ? "text-[9px] uppercase tracking-widest text-[var(--color-gray-light)]" : m.from === "me" ? "bg-[var(--color-charcoal)] text-[var(--color-ivory)] rounded-tr-sm" : "bg-[var(--color-parchment)] text-[var(--color-charcoal)] border border-[var(--color-border)] rounded-tl-sm"}`}>
+                          {m.text}
+                        </div>
                       </div>
                     ))}
                     <div ref={endRef} />
