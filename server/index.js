@@ -154,7 +154,7 @@ server.on("upgrade", (req, socket, head) => {
 
 // ── In-memory state ───────────────────────────────────────────────────────────
 
-/** @type {Map<string, { ws: WebSocket, name: string, interests: string[], partnerId: string|null, sessionId: string|null, msgCount: number, windowStart: number }>} */
+/** @type {Map<string, { ws: WebSocket, name: string, interests: string[], partnerId: string|null, sessionId: string|null, msgCount: number, windowStart: number, previousPartners: Set<string> }>} */
 const clients = new Map();
 
 // Fix 3: Track active WebSocket connections per IP to prevent flood/DoS
@@ -221,6 +221,9 @@ function tryMatch(newId) {
     const candidate = clients.get(candidateId);
     if (!candidate) continue;
 
+    // Skip previously matched partners to avoid re-pairing
+    if (newClient.previousPartners.has(candidateId) || candidate.previousPartners.has(newId)) continue;
+
     const score = matchScore(newClient, candidate);
     if (score > bestScore) {
       bestScore = score;
@@ -252,6 +255,10 @@ function tryMatch(newId) {
   newClient.sessionId      = sessionId;
   partnerClient.partnerId  = newId;
   partnerClient.sessionId  = sessionId;
+
+  // Record each other as previous partners so they won't be re-matched
+  newClient.previousPartners.add(partnerId);
+  partnerClient.previousPartners.add(newId);
 
   const setA             = new Set(newClient.interests);
   const sharedInterests  = partnerClient.interests.filter((i) => setA.has(i));
@@ -285,7 +292,7 @@ function detachPartner(clientId) {
 
 wss.on("connection", (ws) => {
   const id = randomUUID();
-  clients.set(id, { ws, name: "Anonymous", interests: [], partnerId: null, sessionId: null, msgCount: 0, windowStart: Date.now() });
+  clients.set(id, { ws, name: "Anonymous", interests: [], partnerId: null, sessionId: null, msgCount: 0, windowStart: Date.now(), previousPartners: new Set() });
 
   broadcast({ type: "online_count", count: clients.size });
   console.log(`[+] ${id.slice(0, 6)} connected  | total: ${clients.size}`);
