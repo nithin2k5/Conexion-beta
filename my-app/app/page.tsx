@@ -418,6 +418,41 @@ export default function Home() {
 
       </div>
 
+      {/* Live Chat Floating Button */}
+      <AnimatePresence>
+        {onlineCount !== null && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: "spring", stiffness: 200, damping: 20, delay: 1 }}
+            className="fixed bottom-6 right-6 z-[100]"
+          >
+            <Link href="/chat?mode=text" className="group flex flex-col items-end relative">
+              {/* Tooltip / Note */}
+              <div className="absolute bottom-full right-0 mb-4 bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-xl border border-[var(--color-border)] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap pointer-events-none transform origin-bottom-right group-hover:-translate-y-2">
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold uppercase tracking-widest text-[var(--color-charcoal)] mb-1">Click here for live chat</span>
+                  <span className="text-[10px] text-[var(--color-gray-brown)]">Connect instantly with strangers</span>
+                </div>
+                {/* Arrow */}
+                <div className="absolute -bottom-1.5 right-6 w-3 h-3 bg-white/90 border-b border-r border-[var(--color-border)] rotate-45" />
+              </div>
+              
+              {/* Button */}
+              <div className="relative w-16 h-16 bg-[var(--color-charcoal)] rounded-full shadow-2xl flex items-center justify-center text-[var(--color-ivory)] group-hover:scale-110 transition-transform duration-300 hover:shadow-[0_10px_40px_rgba(30,25,20,0.3)]">
+                <RiMessage3Line className="text-2xl" />
+                
+                {/* Badge showing online count */}
+                <div className="absolute -top-2 -right-2 bg-[var(--color-peach)] text-white text-[11px] font-bold px-2.5 py-1 rounded-full border-[3px] border-[var(--color-ivory)] shadow-sm flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                  {onlineCount}
+                </div>
+              </div>
+            </Link>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Footer />
     </div>
   );
