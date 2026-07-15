@@ -429,7 +429,7 @@ export default function Home() {
           >
             <Link href="/world" className="group flex flex-col items-end relative">
               {/* Tooltip / Note */}
-              <div className="absolute bottom-full right-0 mb-4 bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-xl border border-[var(--color-border)] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap pointer-events-none transform origin-bottom-right group-hover:-translate-y-2">
+              <div className="absolute bottom-full right-0 mb-4 bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-xl border border-[var(--color-border)] opacity-100 -translate-y-2 group-hover:opacity-0 group-hover:translate-y-0 transition-all duration-300 whitespace-nowrap pointer-events-none transform origin-bottom-right">
                 <div className="flex flex-col">
                   <span className="text-xs font-bold uppercase tracking-widest text-[var(--color-charcoal)] mb-1">Enter World Chat</span>
                   <span className="text-[10px] text-[var(--color-gray-brown)]">Talk with everyone online</span>
