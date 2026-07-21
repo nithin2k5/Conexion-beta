@@ -7,6 +7,8 @@ import { RiArrowLeftLine, RiMailSendLine } from "react-icons/ri";
 import ParticleBackground from "../components/ParticleBackground";
 import Footer from "../components/Footer";
 
+import { Toaster, toast } from "react-hot-toast";
+
 // Fade up text reveal
 const FadeUpText = ({ text, delay = 0 }: { text: string; delay?: number }) => {
   const words = text.split(" ");
@@ -38,10 +40,12 @@ const FEATURES = [
 
 export default function LaunchingSoon() {
   const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [step, setStep] = useState<"email" | "otp">("email");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
 
-  const handleJoinWaitlist = async (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
 
@@ -49,7 +53,7 @@ export default function LaunchingSoon() {
     setMessage("");
 
     try {
-      const res = await fetch("/api/waitlist", {
+      const res = await fetch("/api/waitlist/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -58,22 +62,67 @@ export default function LaunchingSoon() {
       const data = await res.json();
 
       if (res.ok) {
-        setStatus("success");
-        setMessage(`You're #${data.count} on the waitlist!`);
-        setEmail("");
+        setStatus("idle");
+        setStep("otp");
+        if (data.devOtp) {
+          // Only sent in dev mode when EMAIL_USER is not configured
+          toast.success(`Dev OTP: ${data.devOtp}`);
+        } else {
+          toast.success("OTP sent to your email!");
+        }
       } else {
         setStatus("error");
-        setMessage(data.error || "Failed to join waitlist");
+        setMessage(data.error || "Failed to send OTP");
+        toast.error(data.error || "Failed to send OTP");
       }
     } catch (error) {
       setStatus("error");
       setMessage("An unexpected error occurred");
+      toast.error("An unexpected error occurred");
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !otp) return;
+
+    setStatus("loading");
+    setMessage("");
+
+    try {
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setStatus("success");
+        const successMsg = `You're #${data.count} on the waitlist!`;
+        setMessage(successMsg);
+        toast.success("Waitlist registration successful!");
+        setEmail("");
+        setOtp("");
+        setStep("email");
+      } else {
+        setStatus("error");
+        setMessage(data.error || "Failed to join waitlist");
+        toast.error(data.error || "Failed to join waitlist");
+      }
+    } catch (error) {
+      setStatus("error");
+      setMessage("An unexpected error occurred");
+      toast.error("An unexpected error occurred");
     }
   };
 
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center selection:bg-[var(--color-charcoal)] selection:text-[var(--color-ivory)]"
       style={{ backgroundColor: "var(--color-ivory)" }}>
+      
+      <Toaster position="top-center" />
       
       <div className="fixed inset-0 z-0 pointer-events-none">
         <ParticleBackground />
@@ -133,40 +182,82 @@ export default function LaunchingSoon() {
           We're putting the final touches on our encrypted peer-to-peer network. An entirely new way to experience human connection is coming to your browser.
         </motion.p>
 
-        <motion.form 
-          onSubmit={handleJoinWaitlist}
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full max-w-md warm-panel p-2 flex items-center shadow-lg"
-          style={{ borderRadius: 20 }}
-        >
-          <input 
-            type="email" 
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={status === "loading"}
-            required
-            placeholder="Enter your email for early access" 
-            className="flex-1 bg-transparent border-none outline-none px-6 py-4 text-[var(--color-charcoal)] placeholder-[var(--color-gray-light)] text-[15px] disabled:opacity-50"
-          />
-          <button 
-            type="submit"
-            disabled={status === "loading"}
-            className="bg-[var(--color-charcoal)] text-[var(--color-ivory)] w-14 h-14 rounded-2xl flex items-center justify-center hover:bg-[var(--color-charcoal-80)] transition-colors shrink-0 disabled:opacity-50"
+        {step === "email" ? (
+          <motion.form 
+            onSubmit={handleSendOtp}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full max-w-md warm-panel p-2 flex items-center shadow-lg"
+            style={{ borderRadius: 20 }}
           >
-            {status === "loading" ? (
-              <span className="w-5 h-5 border-2 border-[var(--color-ivory)] border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <RiMailSendLine className="text-xl" />
-            )}
-          </button>
-        </motion.form>
-        {message && (
+            <input 
+              type="email" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={status === "loading"}
+              required
+              placeholder="Enter your email for early access" 
+              className="flex-1 bg-transparent border-none outline-none px-6 py-4 text-[var(--color-charcoal)] placeholder-[var(--color-gray-light)] text-[15px] disabled:opacity-50"
+            />
+            <button 
+              type="submit"
+              disabled={status === "loading"}
+              className="bg-[var(--color-charcoal)] text-[var(--color-ivory)] px-6 h-14 rounded-2xl flex items-center justify-center hover:bg-[var(--color-charcoal-80)] transition-colors shrink-0 disabled:opacity-50"
+            >
+              {status === "loading" ? (
+                <span className="w-5 h-5 border-2 border-[var(--color-ivory)] border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <span className="text-sm font-medium">Send OTP</span>
+              )}
+            </button>
+          </motion.form>
+        ) : (
+          <motion.form 
+            onSubmit={handleVerifyOtp}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-md warm-panel p-2 flex flex-col gap-2 shadow-lg"
+            style={{ borderRadius: 20 }}
+          >
+            <div className="flex items-center">
+              <input 
+                type="text" 
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                disabled={status === "loading"}
+                required
+                placeholder="Enter 6-digit OTP" 
+                className="flex-1 bg-transparent border-none outline-none px-6 py-4 text-[var(--color-charcoal)] placeholder-[var(--color-gray-light)] text-[15px] disabled:opacity-50 text-center tracking-widest font-mono"
+                maxLength={6}
+              />
+              <button 
+                type="submit"
+                disabled={status === "loading" || otp.length < 6}
+                className="bg-[var(--color-charcoal)] text-[var(--color-ivory)] w-14 h-14 rounded-2xl flex items-center justify-center hover:bg-[var(--color-charcoal-80)] transition-colors shrink-0 disabled:opacity-50"
+              >
+                {status === "loading" ? (
+                  <span className="w-5 h-5 border-2 border-[var(--color-ivory)] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <RiMailSendLine className="text-xl" />
+                )}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStep("email")}
+              className="text-[var(--color-gray-light)] text-xs hover:text-[var(--color-charcoal)] transition-colors py-2"
+            >
+              Change Email
+            </button>
+          </motion.form>
+        )}
+
+        {message && status === "success" && (
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className={`mt-4 text-sm ${status === "error" ? "text-red-500" : "text-green-600"}`}
+            className="mt-6 text-sm text-green-600 font-medium"
           >
             {message}
           </motion.p>
