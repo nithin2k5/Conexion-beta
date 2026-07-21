@@ -33,7 +33,6 @@ const FEATURES = [
   "AI-Powered Moderation",
   "High-Fidelity Video",
   "Anonymous Encounters",
-  "No Sign-ups Required",
   "Instant Connectivity",
 ];
 
