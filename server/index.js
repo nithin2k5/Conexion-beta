@@ -127,6 +127,7 @@ server.on("upgrade", (req, socket, head) => {
 
     // Fix 2: Block connections with no origin header AND wrong origins
     if (!reqOrigin || (ORIGIN !== "*" && !reqOrigin.startsWith(ORIGIN))) {
+      console.log("[reject] origin mismatch:", reqOrigin, "expected:", ORIGIN);
       socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
       socket.destroy();
       return;
