@@ -6,7 +6,7 @@ export default function Footer() {
   return (
     <footer className="relative z-10 w-full border-t"
       style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-warm-white)" }}>
-      <div className="max-w-7xl mx-auto px-8 md:px-16 py-12">
+      <div className="max-w-7xl mx-auto px-6 md:px-16 py-12">
         <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-8">
 
           {/* Branding */}

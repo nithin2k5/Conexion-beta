@@ -169,7 +169,7 @@ export default function LaunchingSoon() {
         initial={{ y: -50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-        className="fixed top-0 w-full px-8 md:px-16 py-8 flex justify-between items-center z-50 bg-gradient-to-b from-[var(--color-ivory)] to-transparent"
+        className="fixed top-0 w-full px-6 md:px-16 py-6 md:py-8 flex justify-between items-center z-50 bg-gradient-to-b from-[var(--color-ivory)] to-transparent"
       >
         <Link href="/" className="w-12 h-12 rounded-full flex items-center justify-center bg-[var(--color-beige)] text-[var(--color-charcoal)] hover:bg-[var(--color-charcoal)] hover:text-[var(--color-ivory)] transition-colors shadow-sm">
           <RiArrowLeftLine className="text-xl" />
@@ -187,13 +187,13 @@ export default function LaunchingSoon() {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-          className="mb-8 overflow-hidden rounded-full border border-[var(--color-border)] px-6 py-2 bg-white/40 backdrop-blur-md inline-flex items-center gap-3 shadow-sm"
+          className="mb-8 overflow-hidden rounded-full border border-[var(--color-border)] px-4 md:px-6 py-2 bg-white/40 backdrop-blur-md inline-flex items-center gap-2 md:gap-3 shadow-sm whitespace-nowrap"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-charcoal)] animate-pulse" />
           <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-[var(--color-gray-brown)]">Launching Soon</span>
         </motion.div>
 
-        <h1 className="text-6xl sm:text-8xl md:text-[8rem] leading-[0.9] tracking-tighter text-[var(--color-charcoal)] mb-8 max-w-5xl">
+        <h1 className="text-5xl sm:text-7xl md:text-[8rem] leading-[0.9] tracking-tighter text-[var(--color-charcoal)] mb-8 max-w-5xl">
           <FadeUpText text="The wait is" />
           <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontWeight: 400, color: "var(--color-gray-brown)" }}>
             <FadeUpText text="almost over." delay={0.2} />
@@ -225,12 +225,12 @@ export default function LaunchingSoon() {
               disabled={status === "loading"}
               required
               placeholder="Enter your email for early access" 
-              className="flex-1 bg-transparent border-none outline-none px-6 py-4 text-[var(--color-charcoal)] placeholder-[var(--color-gray-light)] text-[15px] disabled:opacity-50"
+              className="flex-1 bg-transparent border-none outline-none px-4 sm:px-6 py-4 text-[var(--color-charcoal)] placeholder-[var(--color-gray-light)] text-[14px] sm:text-[15px] disabled:opacity-50 min-w-0"
             />
             <button 
               type="submit"
               disabled={status === "loading"}
-              className="bg-[var(--color-charcoal)] text-[var(--color-ivory)] px-6 h-14 rounded-2xl flex items-center justify-center hover:bg-[var(--color-charcoal-80)] transition-colors shrink-0 disabled:opacity-50"
+              className="bg-[var(--color-charcoal)] text-[var(--color-ivory)] px-4 sm:px-6 h-14 rounded-2xl flex items-center justify-center hover:bg-[var(--color-charcoal-80)] transition-colors shrink-0 disabled:opacity-50"
             >
               {status === "loading" ? (
                 <span className="w-5 h-5 border-2 border-[var(--color-ivory)] border-t-transparent rounded-full animate-spin" />
@@ -255,7 +255,7 @@ export default function LaunchingSoon() {
                 disabled={status === "loading"}
                 required
                 placeholder="000000" 
-                className="flex-1 bg-transparent border-none outline-none px-6 py-4 text-[var(--color-charcoal)] placeholder-[var(--color-border)] text-2xl sm:text-3xl font-semibold disabled:opacity-50 text-center tracking-[0.4em]"
+                className="flex-1 bg-transparent border-none outline-none px-4 sm:px-6 py-4 text-[var(--color-charcoal)] placeholder-[var(--color-border)] text-2xl sm:text-3xl font-semibold disabled:opacity-50 text-center tracking-[0.3em] sm:tracking-[0.4em] min-w-0"
                 style={{ fontFamily: "var(--font-serif)" }}
                 maxLength={6}
               />
@@ -308,7 +308,7 @@ export default function LaunchingSoon() {
           >
             {[...FEATURES, ...FEATURES, ...FEATURES].map((feature, i) => (
               <div key={i} className="flex items-center">
-                <span className="text-[12px] md:text-[14px] uppercase tracking-[0.2em] font-bold text-[var(--color-charcoal)] px-8 md:px-16">
+                <span className="text-[12px] md:text-[14px] uppercase tracking-[0.2em] font-bold text-[var(--color-charcoal)] px-6 md:px-16">
                   {feature}
                 </span>
                 <span className="text-[var(--color-peach)] text-lg">✦</span>

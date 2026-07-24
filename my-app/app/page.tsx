@@ -43,7 +43,7 @@ const MagneticButton = ({ children, className, onClick }: any) => {
 const FadeUpText = ({ text, delay = 0 }: { text: string; delay?: number }) => {
   const words = text.split(" ");
   return (
-    <div className="flex flex-wrap overflow-hidden">
+    <div className="flex flex-wrap overflow-hidden justify-center">
       {words.map((word, i) => (
         <motion.span
           key={i}
@@ -227,7 +227,7 @@ export default function Home() {
         initial={{ y: -50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-        className="fixed top-0 w-full px-8 md:px-16 py-8 flex justify-between items-center z-50 bg-gradient-to-b from-[var(--color-ivory)] to-transparent"
+        className="fixed top-0 w-full px-6 md:px-16 py-6 md:py-8 flex justify-between items-center z-50 bg-gradient-to-b from-[var(--color-ivory)] to-transparent"
       >
         <Link href="/" className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ textDecoration: 'none' }}>
           <span className="text-2xl font-bold tracking-tight" style={{ fontFamily: "var(--font-serif)", color: "var(--color-charcoal)" }}>
@@ -237,7 +237,7 @@ export default function Home() {
             Beta
           </span>
         </Link>
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-4 md:gap-8">
           {onlineCount !== null && (
             <div className="hidden md:flex items-center gap-3 bg-white/40 backdrop-blur-md px-4 py-2 rounded-full border border-[var(--color-border)]">
               <span className="status-dot" />
@@ -245,7 +245,7 @@ export default function Home() {
             </div>
           )}
           <Link href="/launch">
-            <MagneticButton className="relative overflow-hidden group rounded-full bg-[var(--color-charcoal)] text-[var(--color-ivory)] px-8 py-3 text-sm font-medium transition-transform duration-500 ease-out">
+            <MagneticButton className="relative overflow-hidden group rounded-full bg-[var(--color-charcoal)] text-[var(--color-ivory)] px-6 py-2.5 md:px-8 md:py-3 text-sm font-medium transition-transform duration-500 ease-out">
               <span className="relative z-10 flex items-center gap-2">Join Waitlist <RiArrowRightLine className="group-hover:translate-x-1 transition-transform" /></span>
               <div className="absolute inset-0 bg-[var(--color-gray-brown)] translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[0.16,1,0.3,1] z-0" />
             </MagneticButton>
@@ -264,7 +264,7 @@ export default function Home() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-            className="mb-8 overflow-hidden rounded-full border border-[var(--color-border)] px-6 py-2 bg-white/40 backdrop-blur-md inline-flex items-center gap-3"
+            className="mb-8 overflow-hidden rounded-full border border-[var(--color-border)] px-4 md:px-6 py-2 bg-white/40 backdrop-blur-md inline-flex items-center gap-2 md:gap-3 whitespace-nowrap"
           >
              <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--color-gray-brown)]">Anonymous</span>
              <span className="w-1 h-1 rounded-full bg-[var(--color-gray-light)]" />
@@ -273,7 +273,7 @@ export default function Home() {
              <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--color-gray-brown)]">Instant</span>
           </motion.div>
 
-          <h1 className="text-6xl sm:text-8xl md:text-[9rem] leading-[0.9] tracking-tighter text-[var(--color-charcoal)] mb-8 max-w-6xl">
+          <h1 className="text-5xl sm:text-7xl md:text-[9rem] leading-[0.9] tracking-tighter text-[var(--color-charcoal)] mb-8 max-w-6xl">
             <FadeUpText text="The Art of" />
             <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontWeight: 400, color: "var(--color-gray-brown)" }}>
               <FadeUpText text="Connection" delay={0.2} />
@@ -341,13 +341,13 @@ export default function Home() {
         {/* ── Feature 1: The Canvas ── */}
         <section className="min-h-[80vh] flex items-center py-20 px-6 md:px-16 w-full max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
-            <div className="order-2 lg:order-1 relative h-[500px] w-full rounded-[2rem] overflow-hidden warm-panel p-0 border-[var(--color-border)] shadow-xl group">
+            <div className="order-2 lg:order-1 relative h-[300px] sm:h-[400px] lg:h-[500px] w-full rounded-[2rem] overflow-hidden warm-panel p-0 border-[var(--color-border)] shadow-xl group">
               <ArchitectureGraphic />
             </div>
             
-            <div className="order-1 lg:order-2 space-y-8">
+            <div className="order-1 lg:order-2 space-y-6 md:space-y-8">
               <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-[var(--color-gray-brown)]">01 — Architecture</span>
-              <h2 className="text-5xl md:text-6xl text-[var(--color-charcoal)] leading-tight">
+              <h2 className="text-4xl md:text-5xl lg:text-6xl text-[var(--color-charcoal)] leading-tight">
                 Peer-to-peer <br/>
                 <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--color-gray-brown)" }}>perfection.</span>
               </h2>
@@ -362,9 +362,9 @@ export default function Home() {
         {/* ── Feature 2: Serendipity ── */}
         <section className="min-h-[80vh] flex items-center py-20 px-6 md:px-16 w-full max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
-            <div className="space-y-8">
+            <div className="space-y-6 md:space-y-8">
               <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-[var(--color-gray-brown)]">02 — Curation</span>
-              <h2 className="text-5xl md:text-6xl text-[var(--color-charcoal)] leading-tight">
+              <h2 className="text-4xl md:text-5xl lg:text-6xl text-[var(--color-charcoal)] leading-tight">
                 Filtered <br/>
                 <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--color-gray-brown)" }}>serendipity.</span>
               </h2>
@@ -387,7 +387,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative h-[500px] w-full rounded-[2rem] overflow-hidden warm-panel p-0 border-[var(--color-border)] shadow-xl group">
+            <div className="relative h-[300px] sm:h-[400px] lg:h-[500px] w-full rounded-[2rem] overflow-hidden warm-panel p-0 border-[var(--color-border)] shadow-xl group">
               <CurationGraphic />
             </div>
           </div>
@@ -396,13 +396,13 @@ export default function Home() {
         {/* ── Feature 3: The Void ── */}
         <section className="min-h-[80vh] flex items-center py-20 px-6 md:px-16 w-full max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
-            <div className="order-2 lg:order-1 relative h-[500px] w-full rounded-[2rem] overflow-hidden shadow-2xl group border border-transparent hover:border-[var(--color-charcoal-80)] transition-colors duration-500">
+            <div className="order-2 lg:order-1 relative h-[300px] sm:h-[400px] lg:h-[500px] w-full rounded-[2rem] overflow-hidden shadow-2xl group border border-transparent hover:border-[var(--color-charcoal-80)] transition-colors duration-500">
               <SecrecyGraphic />
             </div>
 
-            <div className="order-1 lg:order-2 space-y-8">
+            <div className="order-1 lg:order-2 space-y-6 md:space-y-8">
               <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-[var(--color-gray-brown)]">03 — Secrecy</span>
-              <h2 className="text-5xl md:text-6xl text-[var(--color-charcoal)] leading-tight">
+              <h2 className="text-4xl md:text-5xl lg:text-6xl text-[var(--color-charcoal)] leading-tight">
                 Leave <br/>
                 <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--color-gray-brown)" }}>no trace.</span>
               </h2>
